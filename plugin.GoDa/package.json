@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/GoDa",
+	"title": "GoDa漫画",
+	"description": "在 Rulia 里阅读 godamh.com 的漫画。",
+	"version": "0.0.1",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["GoDa", "G站漫画", "manga", "comic"],
+	"homepage": "https://godamh.com/"
+}

@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/Se8",
+	"title": "Se8",
+	"description": "在 Rulia 里阅读 se8.us 的漫画。",
+	"version": "0.0.1",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["Se8", "hanman", "manga", "comic"],
+	"homepage": "https://se8.us/"
+}

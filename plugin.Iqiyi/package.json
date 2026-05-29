@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/Iqiyi",
+	"title": "爱奇艺叭嗒",
+	"description": "在 Rulia 里阅读 iqiyi.com/manhua 的漫画。",
+	"version": "0.0.1",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["爱奇艺", "叭嗒", "Iqiyi", "manhua", "manga", "comic"],
+	"homepage": "https://www.iqiyi.com/manhua"
+}

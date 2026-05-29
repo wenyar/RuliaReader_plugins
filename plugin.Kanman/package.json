@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/Kanman",
+	"title": "看漫画",
+	"description": "在 Rulia 里阅读 kanman.com 的漫画。",
+	"version": "0.0.1",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["看漫画", "Kanman", "kanman", "manga", "comic"],
+	"homepage": "https://www.kanman.com/"
+}

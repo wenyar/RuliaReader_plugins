@@ -1,0 +1,11 @@
+{
+  "name": "@rulia/Vomic",
+  "title": "vomic漫",
+  "description": "在 Rulia 里阅读 vomicmh.com 的漫画。",
+  "version": "0.0.1",
+  "author": "Codex",
+  "icon": "icon.png",
+  "cover": "icon.png",
+  "tags": ["vomic漫", "vomic", "vomicmh", "manga", "comic"],
+  "homepage": "https://vomicmh.com/"
+}

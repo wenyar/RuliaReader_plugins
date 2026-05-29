@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/Baozi",
+	"title": "包子漫画",
+	"description": "在 Rulia 里阅读 baozimh.org 的漫画。",
+	"version": "0.0.1",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["包子漫画", "Baozi", "baozimh", "manga", "comic"],
+	"homepage": "https://baozimh.org/"
+}

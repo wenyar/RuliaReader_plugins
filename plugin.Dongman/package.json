@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/Dongman",
+	"title": "咚漫漫画",
+	"description": "在 Rulia 里阅读 dongmanmanhua.cn 的漫画。",
+	"version": "0.0.1",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["咚漫漫画", "Dongman", "dongmanmanhua", "WEBTOON", "manga", "comic"],
+	"homepage": "https://www.dongmanmanhua.cn/"
+}

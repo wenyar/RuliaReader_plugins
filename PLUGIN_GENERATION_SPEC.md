@@ -34,6 +34,7 @@ plugin.PluginName/
 
 ```text
 icon.svg
+test.js
 ```
 
 要求：
@@ -43,6 +44,7 @@ icon.svg
 - `icon.png` 必须真实存在，并在 `package.json` 的 `icon` 字段中引用。
 - RuliaReader 当前实际展示的是插件图片 `icon.png`，不单独使用封面图；`cover` 字段保留兼容时应与 `icon` 一样指向 `icon.png`。
 - 不生成 `node_modules`、构建缓存、临时文件或无关截图。
+- 新增或明显更新插件时，必须生成或维护插件本地测试文件，推荐命名为 `test.js`；测试文件不打入插件 zip，除非宿主明确需要。
 
 ## 2.1 插件图片规范
 
@@ -282,6 +284,7 @@ async function requestText(url, referer) {
 - 不引入远程执行逻辑。
 - 不使用无关跟踪、统计或广告请求。
 - 不绕过用户明确不希望访问的域名。
+- 不生成依赖强防盗链图片的插件：如果章节图片必须依赖特定 `Referer`、Cookie、一次性 header 或客户端上下文才能显示，而 Rulia 当前最终图片加载链路无法稳定携带这些条件，则该源判定为不适合制作插件。不要用超长 `data:` URL、临时本地代理、外部代理或其他脆弱方式伪装可用。
 - 成人内容插件的 `title`、`description`、`tags` 要真实标识来源，避免伪装成普通漫画源。
 
 ## 12. README 规范
@@ -352,22 +355,33 @@ icon.png
 
 不要把 `plugin.PluginName/` 作为 zip 内部的顶层目录，除非 Rulia 的安装器明确要求。
 
+测试文件默认不打入 zip，zip 只包含宿主运行需要的插件文件。
+
 ## 14. 验收清单
 
-新插件或更新插件完成前，至少检查：
+新增或修复插件时，必须先写本地验收测试并运行通过，再生成或刷新 zip。测试需要模拟 `window.Rulia`，直接调用插件接口，禁止只靠人工目测或单个样例判断可用。无法联网验证时，不得标记为已验收通过，README 验证样例写 `待补充`，最终汇报明确说明未跑联网测试。
+
+本地测试至少覆盖：
 
 - `package.json` 是合法 JSON。
 - `name`、`title`、`version`、`icon`、`cover`、`homepage` 正确。
 - `icon.png` 已按 `300 x 180` 横向插件图片规范制作，并按源站视觉生成或取材。
 - `cover` 若存在，应与 `icon` 一样指向 `icon.png`。
 - 已确认在 RuliaReader 卡片底部标题条覆盖后，`icon.png` 的主体仍能正常显示。
-- `index.js` 无明显语法错误。
-- `setMangaListFilterOptions` 能返回筛选项，若插件支持筛选。
-- `getMangaList` 能返回列表，并支持搜索或分类中的至少一种。
-- `getMangaData` 能返回标题、封面、简介和章节列表。
-- `getChapterImageList` 能返回非空图片数组。
-- `getImageUrl` 能返回最终图片地址。
+- `index.js` 通过语法检查，例如 `node --check plugin.PluginName/index.js`。
+- `setMangaListFilterOptions` 能返回结构合法的筛选项，若插件支持筛选，并至少用一个筛选值跑通列表。
+- `getMangaList(1, pageSize, '', '')` 返回非空列表，且第一条至少包含可用的 `title`、`url`、`coverUrl`。
+- 至少一个列表页 `coverUrl` 能真实请求成功，响应 `Content-Type` 应为 `image/*`；如果源站封面需要 Referer，测试必须用与插件逻辑一致的 Referer 验证。
+- `getMangaList(1, pageSize, keyword, '')` 对实际关键词返回非空列表。
+- `getMangaData(list[0].url)` 能返回标题、封面、简介和非空章节目录；这一步必须使用默认列表中实际返回的第一条或前几条作品，不能只测人工挑选的固定样例。
+- `getMangaData(验证样例详情页)` 能返回非空章节目录。
+- `getChapterImageList(验证样例章节)` 能返回非空图片数组。
+- 至少一张章节图片 URL 能在接近 Rulia 最终加载方式的条件下真实请求成功，响应 `Content-Type` 应为 `image/*`，且不能是防盗链提示图、占位图、错误图或站点警告图。
+- 测试必须同时校验“最终 URL 直连可显示”场景：调用 `getImageUrl(chapterImage.url)` 后，对返回的 URL 发起不带特殊 `Referer`/Cookie/header 的普通请求；如果该请求得到 403、404、站点警告图、占位图，或只能靠插件内部 `httpRequest` 加 header 才能拿到真图，则该插件不通过验收。
+- 禁止把大体积图片转成 `data:image/*;base64,...` 作为常规绕过方式；Rulia 可能因 URI 过长或内存开销无法加载。仅当宿主明确支持并经过真实阅读页验证时才可使用。
+- `getImageUrl` 能返回最终短图片地址；如果源站图片会因无 Referer 返回防盗链图，而宿主不支持图片请求 headers，则停止制作或将插件标记为不可做，不得打包为可用插件。
 - README 写清数据来源、特殊依赖、调用接口、页面解析方式、payload、核心逻辑和已知限制。
+- README 或最终汇报记录测试命令和测试结果。
 - README 写有验证样例；无法验证时标注 `待补充`。
 - README 更新记录已补充当前版本变化。
 - 同名 zip 已重新生成。
@@ -390,7 +404,8 @@ icon.png
 2. 编写或修正 `package.json`、`index.js`、`README.md`、插件图片资源。
 3. 根据源站实现列表、详情、章节图片和图片 URL 接口。
 4. 更新 `README.md`，记录接口调用和相关逻辑。
-5. 做基础静态检查。
-6. 生成或刷新 `plugin.PluginName.zip`。
-7. 如果是新增插件，同步更新仓库根目录 `README.md` 的插件列表、状态和注意事项。
-8. 汇报改动文件、版本号和已知限制。
+5. 编写或更新插件本地测试，覆盖列表、搜索、详情、章节目录、章节图片和图片可访问性。
+6. 运行语法检查、本地测试和必要的联网验收测试；测试失败必须先修复，不得直接打包。
+7. 生成或刷新 `plugin.PluginName.zip`。
+8. 如果是新增插件，同步更新仓库根目录 `README.md` 的插件列表、状态和注意事项。
+9. 汇报改动文件、版本号、测试命令、测试结果和已知限制。

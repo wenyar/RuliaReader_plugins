@@ -22,6 +22,7 @@
 | GoDa漫画 | [godamh.com](https://godamh.com/) | `plugin.GoDa` | 可用 | 支持列表、搜索、分类筛选、详情、全量章节目录和章节图片。 | 源站可能存在访问限制或接口变动；异常时先确认网站本身能否打开。 |
 | 爱奇艺叭嗒 | [iqiyi.com/manhua](https://www.iqiyi.com/manhua) | `plugin.Iqiyi` | 受源站权限影响 | 支持分类浏览、关键词搜索、详情、完整章节目录和章节图片。 | 部分付费、版权或地区限制章节会按源站返回结果处理。 |
 | 看漫画 | [kanman.com](https://www.kanman.com/) | `plugin.Kanman` | 可用 | 支持分类浏览、搜索、详情、章节目录和章节图片。 | 章节图片依赖源站接口和图片域名；源站限流或接口变化时可能需要更新插件。 |
+| 拷贝漫画 | [mangacopy.com](https://www.mangacopy.com/) | `plugin.MangaCopy` | 可用 | 支持列表、搜索、详情、章节目录和章节图片解密解析。 | 源站当前提示大陆无障碍访问地址为 `2026copy.com`；插件按 `mangacopy.com` 生成，章节目录和图片依赖源站 AES 加密规则。 |
 | 漫画站 | [manhuazhan.org](https://www.manhuazhan.org/) | `plugin.Manhuazhan` | 可用 | 支持分类、状态筛选、详情、章节列表和章节图片解密解析。 | 图片解析依赖源站页面脚本和加密规则，源站改版后可能失效。 |
 | nHentai | [nhentai.net](https://nhentai.net/) | `plugin.Nhentai` | 可能需要代理 | 使用官方域名和 API，支持语言、标签、排序、搜索、详情和图片读取。 | 成人内容源；在部分网络环境可能需要代理；API 可能限流，插件会尽量使用缓存兜底。 |
 | Se8 | [se8.us](https://se8.us/) | `plugin.Se8` | 可能需要代理 | 支持分类浏览、标题搜索、详情页、章节列表和章节图片解析。 | 成人内容源；部分网络环境可能需要代理；图片依赖源站 `lazy-read` 地址。 |

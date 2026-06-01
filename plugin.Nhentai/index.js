@@ -57,34 +57,72 @@ function isRateLimitError(error) {
 
 function filterValue(value) {
   if (value && typeof value === 'object') {
-    value = value.value || value.name || value.label || '';
+    value = value.value || value.selected || value.current || value.name || value.label || '';
   }
   value = String(value || '').trim();
   return value === '全部' || value.toLowerCase() === 'all' ? '' : value;
+}
+
+function readFilterField(source, name) {
+  if (!source) {
+    return '';
+  }
+  if (Object.prototype.hasOwnProperty.call(source, name)) {
+    return filterValue(source[name]);
+  }
+  if (Array.isArray(source)) {
+    for (let i = 0; i < source.length; i++) {
+      const item = source[i];
+      if (!item) {
+        continue;
+      }
+      if (item.name === name || item.key === name || item.id === name || item.label === name) {
+        return filterValue(item.value || item.selected || item.current || item.option);
+      }
+    }
+  }
+  return '';
 }
 
 function parseFilters(raw) {
   if (!raw) {
     return {};
   }
-  if (typeof raw !== 'string') {
-    raw = raw || {};
-    return {
-      language: filterValue(raw.language),
-      tag: filterValue(raw.tag),
-      sort: filterValue(raw.sort)
-    };
-  }
+  let parsed = raw;
   try {
-    const parsed = JSON.parse(raw) || {};
-    return {
-      language: filterValue(parsed.language),
-      tag: filterValue(parsed.tag),
-      sort: filterValue(parsed.sort)
-    };
+    if (typeof raw === 'string') {
+      parsed = JSON.parse(raw) || {};
+    }
   } catch (_) {
     return {};
   }
+  return {
+    language: readFilterField(parsed, 'language'),
+    tag: readFilterField(parsed, 'tag'),
+    sort: readFilterField(parsed, 'sort')
+  };
+}
+
+function parseGetMangaListArgs(args) {
+  if (args.length >= 4) {
+    return {
+      page: args[0],
+      keyword: args[2],
+      filters: parseFilters(args[3])
+    };
+  }
+  if (args.length === 3) {
+    return {
+      page: args[0],
+      keyword: args[1],
+      filters: parseFilters(args[2])
+    };
+  }
+  return {
+    page: args[0],
+    keyword: args[1],
+    filters: {}
+  };
 }
 
 function normalizeNhentaiUrl(value) {
@@ -336,10 +374,8 @@ async function setMangaListFilterOptions() {
 async function getMangaList(page, pageSize, keyword, rawFilterOptions) {
   let listUrl = '';
   try {
-    const legacyCall = arguments.length < 4;
-    const filters = parseFilters(legacyCall ? keyword : rawFilterOptions);
-    const searchKeyword = legacyCall ? pageSize : keyword;
-    listUrl = shouldUseGalleries(searchKeyword, filters) ? buildGalleriesUrl(page) : buildSearchUrl(page, searchKeyword, filters);
+    const params = parseGetMangaListArgs(arguments);
+    listUrl = shouldUseGalleries(params.keyword, params.filters) ? buildGalleriesUrl(params.page) : buildSearchUrl(params.page, params.keyword, params.filters);
     const json = await requestJson(listUrl);
     const rows = Array.isArray(json.result) ? json.result : [];
     finish({ list: rows.filter(function (item) { return item && item.id && !item.blacklisted; }).map(itemToManga) });

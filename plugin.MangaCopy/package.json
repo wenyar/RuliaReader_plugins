@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/MangaCopy",
+	"title": "拷贝漫画",
+	"description": "在 Rulia 里阅读 mangacopy.com 的漫画。",
+	"version": "0.0.24",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["拷贝漫画", "MangaCopy", "mangacopy", "manga", "comic"],
+	"homepage": "https://www.mangacopy.com/"
+}

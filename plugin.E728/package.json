@@ -1,0 +1,11 @@
+{
+  "name": "@rulia/E728",
+  "title": "漫画屋",
+  "description": "在 Rulia 里阅读 e728.com 的漫画。",
+  "version": "0.1.4",
+  "author": "Codex",
+  "icon": "icon.png",
+  "cover": "icon.png",
+  "tags": ["漫画屋", "E728", "e728", "manga", "comic"],
+  "homepage": "https://www.e728.com/"
+}

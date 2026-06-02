@@ -20,6 +20,7 @@
 | 二次元動漫 | [2animx.com](https://www.2animx.com/) | `plugin.2Animx` | 可用 | 支持漫画大全、筛选、搜索、详情、章节目录和章节图片。 | 章节页图片需从 `img.2animx.com` 改写到 `www.2animx.com/upload/...` 后直连；部分旧图若返回伪 `404` 图片会尝试同页数重传章节兜底。 |
 | 包子漫画 | [baozimh.org](https://baozimh.org/) | `plugin.Baozi` | 可用 | 支持浏览、搜索、详情、章节目录和章节图片。 | 源站接口或图片域名可能变化；如果图片加载失败，优先检查源站是否可访问。 |
 | 咚漫漫画 | [dongmanmanhua.cn](https://www.dongmanmanhua.cn/) | `plugin.Dongman` | 可用 | 支持分类浏览、关键词搜索、详情和章节图片。 | 分类页会返回完整列表，插件本地分页；部分作品可能受版权、地区或站点策略影响。 |
+| 漫画屋 | [e728.com](https://www.e728.com/) | `plugin.E728` | 可用 | 支持分类浏览、常用入口筛选、搜索、详情、章节目录和章节图片。 | 章节图片来自 `manhua.5um.net`，封面来自 `comic.5um.net`；若图片 CDN 调整，需要更新解析规则。 |
 | GoDa漫画 | [godamh.com](https://godamh.com/) | `plugin.GoDa` | 可用 | 支持列表、搜索、分类筛选、详情、全量章节目录和章节图片。 | 源站可能存在访问限制或接口变动；异常时先确认网站本身能否打开。 |
 | 爱奇艺叭嗒 | [iqiyi.com/manhua](https://www.iqiyi.com/manhua) | `plugin.Iqiyi` | 受源站权限影响 | 支持分类浏览、关键词搜索、详情、完整章节目录和章节图片。 | 部分付费、版权或地区限制章节会按源站返回结果处理。 |
 | 看漫画 | [kanman.com](https://www.kanman.com/) | `plugin.Kanman` | 可用 | 支持分类浏览、搜索、详情、章节目录和章节图片。 | 章节图片依赖源站接口和图片域名；源站限流或接口变化时可能需要更新插件。 |

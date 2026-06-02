@@ -191,22 +191,34 @@ function pagePath(basePath, page) {
 }
 
 function buildListUrl(page, filterOptions) {
-	if (filterOptions.category) {
-		return BASE_URL + pagePath('/category/tags/' + encodeURIComponent(filterOptions.category), page);
-	}
 	const entry = filterOptions.entry || filterOptions.sort || 'category';
 	if (entry && entry !== 'category') {
 		return BASE_URL + pagePath('/custom/' + encodeURIComponent(entry), page);
 	}
-	return BASE_URL + pagePath('/category', page);
+	const pathParts = ['/category'];
+	if (filterOptions.order) {
+		pathParts.push('order', encodeURIComponent(filterOptions.order));
+	}
+	if (filterOptions.status) {
+		pathParts.push('finish', encodeURIComponent(filterOptions.status));
+	}
+	if (filterOptions.category) {
+		pathParts.push('tags', encodeURIComponent(filterOptions.category));
+	}
+	return BASE_URL + pagePath(pathParts.join('/'), page);
 }
 
 function listCacheKey(filterOptions) {
-	if (filterOptions.category) {
-		return 'category:' + filterOptions.category;
-	}
 	const entry = filterOptions.entry || filterOptions.sort || 'category';
-	return entry === 'category' ? 'category:' : 'entry:' + entry;
+	if (entry !== 'category') {
+		return 'entry:' + entry;
+	}
+	return [
+		'category',
+		filterOptions.order || '',
+		filterOptions.status || '',
+		filterOptions.category || ''
+	].join(':');
 }
 
 function isPagedList(filterOptions) {
@@ -225,11 +237,28 @@ function singlePageAlreadyServed(cacheKey, page) {
 
 function parseMaxPage(html) {
 	let maxPage = 1;
-	String(html || '').replace(/href=["'][^"']*\/(?:category|custom)(?:\/tags\/\d+)?\/page\/(\d+)[^"']*["']/gi, (_, page) => {
+	String(html || '').replace(/href=["'][^"']*\/category(?:\/[^"']*)?\/page\/(\d+)[^"']*["']/gi, (_, page) => {
 		maxPage = Math.max(maxPage, parseInt(page, 10) || 1);
 		return '';
 	});
 	return maxPage;
+}
+
+function parseCategoryOptions(html) {
+	const start = String(html || '').indexOf('漫画类型');
+	const end = String(html || '').indexOf('漫画状态');
+	const block = start >= 0 && end > start ? String(html).slice(start, end) : '';
+	const options = [{ label: '全部', value: '' }];
+	const seen = { '': true };
+	block.replace(/<a\b[^>]*href=["'][^"']*\/category(?:\/[^"']*)?\/tags\/(\d+)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi, (_, value, labelHtml) => {
+		const label = stripTags(labelHtml);
+		if (label && !seen[value]) {
+			seen[value] = true;
+			options.push({ label, value });
+		}
+		return '';
+	});
+	return options.length > 1 ? options : CATEGORIES;
 }
 
 function buildSearchUrl(keyword) {
@@ -356,10 +385,36 @@ function parseChapterImages(html) {
 }
 
 async function setMangaListFilterOptions() {
-	finish([
-		{ label: '分类', name: 'category', options: CATEGORIES },
-		{ label: '入口', name: 'entry', options: ENTRIES }
-	]);
+	try {
+		const categoryOptions = parseCategoryOptions(await requestText(BASE_URL + '/category/'));
+		finish([
+			{ label: '入口', name: 'entry', options: ENTRIES },
+			{ label: '类型', name: 'category', options: categoryOptions },
+			{ label: '状态', name: 'status', options: [
+				{ label: '全部', value: '' },
+				{ label: '连载中', value: '1' },
+				{ label: '已完结', value: '2' }
+			] },
+			{ label: '排序', name: 'order', options: [
+				{ label: '热门人气', value: 'hits' },
+				{ label: '最新更新', value: 'addtime' }
+			] }
+		]);
+	} catch (error) {
+		finish([
+			{ label: '入口', name: 'entry', options: ENTRIES },
+			{ label: '类型', name: 'category', options: CATEGORIES },
+			{ label: '状态', name: 'status', options: [
+				{ label: '全部', value: '' },
+				{ label: '连载中', value: '1' },
+				{ label: '已完结', value: '2' }
+			] },
+			{ label: '排序', name: 'order', options: [
+				{ label: '热门人气', value: 'hits' },
+				{ label: '最新更新', value: 'addtime' }
+			] }
+		]);
+	}
 }
 
 async function getMangaList(page, pageSize, keyword, rawFilterOptions) {

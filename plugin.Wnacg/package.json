@@ -1,0 +1,11 @@
+{
+	"name": "@rulia/Wnacg",
+	"title": "紳士漫畫",
+	"description": "在 Rulia 里阅读 wnacg.com 的漫画和图集。",
+	"version": "0.0.1",
+	"author": "Codex",
+	"icon": "icon.png",
+	"cover": "icon.png",
+	"tags": ["紳士漫畫", "Wnacg", "wnacg", "manga", "comic"],
+	"homepage": "https://www.wnacg.com/"
+}

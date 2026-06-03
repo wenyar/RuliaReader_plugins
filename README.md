@@ -30,6 +30,7 @@
 | nHentai | [nhentai.net](https://nhentai.net/) | `plugin.Nhentai` | 可能需要代理 | 使用官方域名和 API，支持语言、标签、排序、搜索、详情和图片读取。 | 成人内容源；在部分网络环境可能需要代理；API 可能限流，插件会尽量使用缓存兜底。 |
 | Se8 | [se8.us](https://se8.us/) | `plugin.Se8` | 可能需要代理 | 支持分类浏览、标题搜索、详情页、章节列表和章节图片解析。 | 成人内容源；部分网络环境可能需要代理；图片依赖源站 `lazy-read` 地址。 |
 | vomic漫 | [vomicmh.com](https://vomicmh.com/) | `plugin.Vomic` | 需要登录 | 支持浏览、分类、搜索、详情、章节目录和章节图片。 | 章节图片需要登录态；请在 RuliaReader 中为 `vomicmh.com` 保存 `_token` cookie，插件不会保存账号、密码或 token。 |
+| 紳士漫畫 | [wnacg.com](https://www.wnacg.com/) | `plugin.Wnacg` | 需要 cookie | 支持分类浏览、搜索、详情和整本图片列表解析。 | 成人内容源；源站有 Cloudflare 验证，请先在 Rulia 共享的浏览器中完成验证并保存 cookie。 |
 
 ## 注意事项
 

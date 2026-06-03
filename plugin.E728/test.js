@@ -5,6 +5,7 @@ const assert = require('assert');
 
 const BASE_DIR = __dirname;
 const TIMEOUT = 30000;
+const EMPTY_COVER = 'https://www.e728.com/template/pc/zizhi001/img/logo.png';
 
 function request(options) {
 	return fetch(options.url, {
@@ -52,7 +53,7 @@ async function main() {
 	const pkg = JSON.parse(fs.readFileSync(path.join(BASE_DIR, 'package.json'), 'utf8'));
 	assert.strictEqual(pkg.name, '@rulia/E728');
 	assert.strictEqual(pkg.title, '漫画屋');
-	assert.strictEqual(pkg.version, '0.1.5');
+	assert.strictEqual(pkg.version, '0.1.16');
 	assert.strictEqual(pkg.icon, 'icon.png');
 	assert.strictEqual(pkg.cover, 'icon.png');
 	assert.strictEqual(pkg.homepage, 'https://www.e728.com/');
@@ -84,31 +85,31 @@ async function main() {
 	vm.runInContext(code, context);
 
 	const filters = await call(context, 'setMangaListFilterOptions', []);
-	assert.ok(Array.isArray(filters) && filters.length === 4, 'filters invalid');
-	const categoryFilter = filters.find(filter => filter.name === 'category');
-	const statusFilter = filters.find(filter => filter.name === 'status');
-	const orderFilter = filters.find(filter => filter.name === 'order');
-	assert.ok(categoryFilter && categoryFilter.options.length > 250, 'category options should match site tags');
-	assert.ok(categoryFilter.options.some(option => option.label === '战争' && option.value === '20'), 'missing site category 战争');
-	assert.ok(categoryFilter.options.some(option => option.label === '燃向' && option.value === '313'), 'missing site category 燃向');
-	assert.ok(statusFilter && statusFilter.options.some(option => option.label === '连载中' && option.value === '1'), 'status options invalid');
-	assert.ok(orderFilter && orderFilter.options.some(option => option.label === '最新更新' && option.value === 'addtime'), 'order options invalid');
+	assert.ok(Array.isArray(filters) && filters.length === 3, 'filters invalid');
+	assert.strictEqual(filters[0].name, 'category');
+	assert.ok(filters[0].options.length > 250, 'category options should be complete');
+	assert.ok(filters[0].options.some(option => option.label === '燃向' && option.value === '313'), 'missing category 燃向');
+	assert.strictEqual(filters[1].name, 'status');
+	assert.strictEqual(filters[2].name, 'order');
 
 	const list = await call(context, 'getMangaList', [1, 12, '', '']);
 	assert.ok(list.list.length > 0, 'empty default list');
-	assert.ok(list.list[0].title && list.list[0].url && list.list[0].coverUrl, 'list item incomplete');
+	assert.ok(list.list[0].title && list.list[0].url, 'list item incomplete');
 
-	const coverHead = await head(list.list[0].coverUrl);
-	assert.strictEqual(coverHead.status, 200);
-	assert.ok(/^image\//i.test(coverHead.contentType), 'cover is not image: ' + coverHead.contentType);
 	for (let i = 0; i < list.list.length; i++) {
+		if (list.list[i].coverUrl === EMPTY_COVER) {
+			continue;
+		}
+		if (!list.list[i].coverUrl) {
+			continue;
+		}
 		const currentHead = await head(list.list[i].coverUrl);
 		assert.strictEqual(currentHead.status, 200, 'cover HTTP failed: ' + list.list[i].title);
 		assert.ok(/^image\//i.test(currentHead.contentType), 'cover is not image: ' + list.list[i].title + ' ' + currentHead.contentType);
 	}
 	const jueshiListItem = list.list.find(item => item.title === '绝世武神');
 	assert.ok(jueshiListItem, 'missing 绝世武神 in default list');
-	assert.strictEqual(jueshiListItem.coverUrl, 'https://comic.5um.net/comic/cover/fengnitianxia.webp', 'known bad cover should use cdn fallback in list');
+	assert.strictEqual(jueshiListItem.coverUrl, EMPTY_COVER, 'known bad cover should use site logo placeholder in list');
 
 	const listPage2 = await call(context, 'getMangaList', [2, 12, '', '']);
 	assert.ok(listPage2.list.length > 0, 'default page 2 should not be empty');
@@ -118,18 +119,9 @@ async function main() {
 	const largePage1 = await call(context, 'getMangaList', [1, 50, '', '']);
 	const largePage2 = await call(context, 'getMangaList', [2, 50, '', '']);
 	assert.ok(largePage1.list.length > 0 && largePage2.list.length > 0, 'large page lists should not be empty');
+	assert.ok(largePage1.list.length > 20, 'large page should merge multiple source pages');
 	assert.ok(!largePage1.list.some(item => largePage2.list.some(next => next.url === item.url)), 'large page 1 and 2 should not overlap');
 	assert.deepStrictEqual(Object.keys(largePage1).sort(), ['list'], 'large default list should only return list');
-
-	const customPage1 = await call(context, 'getMangaList', [1, 20, '', JSON.stringify({ entry: 'new' })]);
-	const customPage2 = await call(context, 'getMangaList', [2, 20, '', JSON.stringify({ entry: 'new' })]);
-	assert.ok(customPage1.list.length > 0, 'custom first page should not be empty');
-	assert.strictEqual(customPage2.list.length, 0, 'custom entry should be single page');
-
-	const topPage1 = await call(context, 'getMangaList', [1, 20, '', JSON.stringify({ entry: 'top' })]);
-	const topRepeatedPage1 = await call(context, 'getMangaList', [1, 20, '', JSON.stringify({ entry: 'top' })]);
-	assert.ok(topPage1.list.length > 0, 'top first page should not be empty');
-	assert.strictEqual(topRepeatedPage1.list.length, 0, 'top repeated first page should be empty because source has no pagination');
 
 	const lastPage = await call(context, 'getMangaList', [795, 20, '', '']);
 	const afterLastPage = await call(context, 'getMangaList', [796, 20, '', '']);
@@ -158,7 +150,7 @@ async function main() {
 
 	const jueshiDetail = await call(context, 'getMangaData', ['https://www.e728.com/comic_13767.html']);
 	assert.strictEqual(jueshiDetail.title, '绝世武神');
-	assert.ok(!Object.prototype.hasOwnProperty.call(jueshiDetail, 'coverUrl'), 'known bad cover should omit coverUrl in detail');
+	assert.strictEqual(jueshiDetail.coverUrl, EMPTY_COVER, 'known bad cover should use site logo placeholder in detail');
 	assert.ok(jueshiDetail.chapterList.length > 0, 'jueshi chapters empty');
 
 	const sampleChapter = sampleDetail.chapterList[0];

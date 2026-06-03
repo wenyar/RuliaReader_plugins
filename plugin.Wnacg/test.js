@@ -8,6 +8,7 @@ const pluginDir = __dirname;
 const pkg = JSON.parse(fs.readFileSync(path.join(pluginDir, 'package.json'), 'utf8'));
 assert.strictEqual(pkg.name, '@rulia/Wnacg');
 assert.strictEqual(pkg.title, '紳士漫畫');
+assert.strictEqual(pkg.version, '0.0.11');
 assert.strictEqual(pkg.icon, 'icon.png');
 assert.strictEqual(pkg.cover, 'icon.png');
 assert.strictEqual(pkg.homepage, 'https://www.wnacg.com/');
@@ -69,7 +70,10 @@ vm.runInContext(code, sandbox);
 (async () => {
 	await sandbox.setMangaListFilterOptions();
 	assert(Array.isArray(lastResult));
-	assert(lastResult[0].options.length > 1);
+	assert.strictEqual(lastResult[0].name, 'period');
+	assert.strictEqual(lastResult[0].options.length, 4);
+	assert(lastResult[1].options.length >= 20);
+	assert.strictEqual(lastResult.length, 2);
 
 	if (!process.env.WNACG_COOKIE) {
 		console.log('Static checks passed. Set WNACG_COOKIE to run live WNACG checks.');

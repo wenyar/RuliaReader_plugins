@@ -1,26 +1,67 @@
 const BASE_URL = 'https://www.wnacg.com';
 const FALLBACK_COVER = BASE_URL + '/favicon.ico';
 const REQUEST_TIMEOUT = 20000;
+const RETRY_DELAYS = [1500, 4000];
 const SITE_PAGE_SIZE = 12;
 const DEFAULT_WIDTH = 900;
 const DEFAULT_HEIGHT = 1300;
 
 const mangaDataCache = {};
 const chapterImageCache = {};
+const coverCache = {};
 
-const CATEGORIES = [
-	{ label: '全部', value: '' },
-	{ label: 'CG画集', value: '2' },
-	{ label: 'Cosplay', value: '3' },
-	{ label: '同人志-汉化', value: '1' },
-	{ label: '同人志-日语', value: '12' },
-	{ label: '杂志&短篇-汉化', value: '10' },
-	{ label: '杂志&短篇-日语', value: '14' },
-	{ label: '单行本-汉化', value: '9' },
-	{ label: '单行本-日语', value: '13' },
-	{ label: '韩漫-汉化', value: '20' },
-	{ label: '韩漫-生肉', value: '21' }
+const RANK_PERIODS = [
+	{ label: '今日', value: 'day' },
+	{ label: '本周', value: 'week' },
+	{ label: '本月', value: 'month' },
+	{ label: '今年', value: 'year' }
 ];
+
+const RANK_CATEGORIES = [
+	{ label: '全部分类', value: 'all' },
+	{ label: '同人志', value: 'doujin' },
+	{ label: '同人志-日语', value: 'doujin_ja' },
+	{ label: '同人志-English', value: 'doujin_en' },
+	{ label: '同人志-汉化', value: 'doujin_zh' },
+	{ label: 'CG画集', value: 'cg' },
+	{ label: '单行本', value: 'tankoubon' },
+	{ label: '单行本-日语', value: 'tankoubon_ja' },
+	{ label: '单行本-English', value: 'tankoubon_en' },
+	{ label: '单行本-汉化', value: 'tankoubon_zh' },
+	{ label: '杂志&短篇', value: 'magazine' },
+	{ label: '杂志&短篇-日语', value: 'magazine_ja' },
+	{ label: '杂志&短篇-English', value: 'magazine_en' },
+	{ label: '杂志&短篇-汉化', value: 'magazine_zh' },
+	{ label: '写真&Cosplay', value: 'cosplay' },
+	{ label: '韩漫', value: 'korean' },
+	{ label: '韩漫-生肉', value: 'korean_raw' },
+	{ label: '韩漫-汉化', value: 'korean_zh' },
+	{ label: '3D&漫画', value: 'three_d' },
+	{ label: 'AI女神', value: 'ai' }
+];
+
+const RANK_CATEGORY_IDS = {
+	all: '',
+	doujin: '5',
+	doujin_ja: '12',
+	doujin_en: '16',
+	doujin_zh: '1',
+	cg: '2',
+	tankoubon: '6',
+	tankoubon_ja: '13',
+	tankoubon_en: '17',
+	tankoubon_zh: '9',
+	magazine: '7',
+	magazine_ja: '14',
+	magazine_en: '18',
+	magazine_zh: '10',
+	cosplay: '3',
+	korean: '19',
+	korean_raw: '21',
+	korean_zh: '20',
+	three_d: '22',
+	ai: '37'
+};
 
 function rulia() {
 	return window.Rulia && (window.Rulia.Rulia || window.Rulia);
@@ -36,7 +77,19 @@ function fail(error) {
 		rulia().endWithException('WNACG 返回 Cloudflare 验证页。请先在 Rulia 共享的浏览器中打开 wnacg.com 并完成验证，确保 cookie 已保存。');
 		return;
 	}
+	if (isRateLimitError(text)) {
+		rulia().endWithException('WNACG 返回 429 限流。请稍等一会儿再刷新；列表默认使用快速封面以减少请求。');
+		return;
+	}
 	rulia().endWithException(text);
+}
+
+function sleep(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(error) {
+	return /\b429\b|too many requests|rate limit/i.test(String(error && error.message || error || ''));
 }
 
 function decodeHtml(value) {
@@ -97,6 +150,26 @@ function cleanImageUrl(value, base) {
 	return url.replace(/^http:\/\//i, 'https://');
 }
 
+function isBadCoverUrl(url) {
+	if (!url) {
+		return true;
+	}
+	return /(?:favicon|logo|avatar|user|face|head|default|blank|loading|noimage|uc_server|images\/app)/i.test(url);
+}
+
+function cleanCoverUrl(value, base) {
+	const url = cleanImageUrl(value, base);
+	return isBadCoverUrl(url) ? '' : url;
+}
+
+function normalizeListCoverUrl(value, base) {
+	const url = cleanCoverUrl(value, base);
+	if (!url) {
+		return '';
+	}
+	return url;
+}
+
 function requestHeaders(referer) {
 	return {
 		Referer: referer || BASE_URL + '/',
@@ -108,16 +181,28 @@ function requestHeaders(referer) {
 
 async function requestText(url, referer) {
 	const requestUrl = normalizeUrl(url);
-	const text = await rulia().httpRequest({
-		url: requestUrl,
-		method: 'GET',
-		headers: requestHeaders(referer),
-		timeout: REQUEST_TIMEOUT
-	});
-	if (/Just a moment|cf_chl|Enable JavaScript and cookies/i.test(String(text || ''))) {
-		throw new Error('Cloudflare challenge');
+	let lastError = null;
+	for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+		try {
+			const text = await rulia().httpRequest({
+				url: requestUrl,
+				method: 'GET',
+				headers: requestHeaders(referer),
+				timeout: REQUEST_TIMEOUT
+			});
+			if (/Just a moment|cf_chl|Enable JavaScript and cookies/i.test(String(text || ''))) {
+				throw new Error('Cloudflare challenge');
+			}
+			return text;
+		} catch (error) {
+			lastError = error;
+			if (!isRateLimitError(error) || attempt >= RETRY_DELAYS.length) {
+				break;
+			}
+			await sleep(RETRY_DELAYS[attempt]);
+		}
 	}
-	return text;
+	throw lastError || new Error('请求失败：' + requestUrl);
 }
 
 function parseFilterOptions(rawFilterOptions) {
@@ -134,6 +219,24 @@ function parseFilterOptions(rawFilterOptions) {
 	}
 }
 
+function filterValue(value) {
+	if (value && typeof value === 'object') {
+		value = value.value || value.selected || value.current || value.name || value.label || '';
+	}
+	return String(value || '').trim();
+}
+
+function rankCategoryId(value) {
+	const key = filterValue(value) || 'all';
+	if (Object.prototype.hasOwnProperty.call(RANK_CATEGORY_IDS, key)) {
+		return RANK_CATEGORY_IDS[key];
+	}
+	if (/^\d+$/.test(key)) {
+		return key;
+	}
+	return '';
+}
+
 function sitePagesForRequest(page, pageSize) {
 	const requestedSize = Math.max(1, parseInt(pageSize, 10) || SITE_PAGE_SIZE);
 	const count = Math.max(1, Math.ceil(requestedSize / SITE_PAGE_SIZE));
@@ -145,10 +248,24 @@ function sitePagesForRequest(page, pageSize) {
 	return pages;
 }
 
-function buildListUrl(page, filterOptions) {
+function buildIndexListUrl(page, filterOptions) {
 	const pageNo = Math.max(1, parseInt(page, 10) || 1);
 	const category = filterOptions.category || '';
 	return BASE_URL + '/albums-index-page-' + pageNo + (category ? '-cate-' + encodeURIComponent(category) : '') + '.html';
+}
+
+function buildRankingUrls(page, filterOptions) {
+	const pageNo = Math.max(1, parseInt(page, 10) || 1);
+	const period = filterValue(filterOptions.period) || 'day';
+	const category = rankCategoryId(filterOptions.category);
+	const base = BASE_URL + '/albums-favorite_ranking-page-' + pageNo;
+	if (!category) {
+		return [base + '-type-' + encodeURIComponent(period) + '.html'];
+	}
+	return [
+		base + '-type-' + encodeURIComponent(period) + '-cate-' + encodeURIComponent(category) + '.html',
+		base + '-cate-' + encodeURIComponent(category) + '-type-' + encodeURIComponent(period) + '.html'
+	];
 }
 
 function buildSearchUrl(page, keyword) {
@@ -180,32 +297,43 @@ function indexUrlFromAid(aid) {
 function parseMangaList(html) {
 	const result = [];
 	const seen = {};
-	const itemRe = /<li\b[^>]*>([\s\S]*?photos-index-aid-\d+\.html[\s\S]*?)<\/li>/gi;
+	const itemRe = /<a\b[^>]*href=["']([^"']*photos-index-aid-\d+\.html)["'][^>]*>(?:(?!<\/a>)[\s\S])*?<img\b[^>]*>(?:(?!<\/a>)[\s\S])*?<\/a>/gi;
 	let match;
 	while ((match = itemRe.exec(html || '')) !== null) {
-		const block = match[1];
-		const link = (block.match(/<a\b[^>]*href=["']([^"']*photos-index-aid-\d+\.html)["'][^>]*>/i) || [])[1];
+		const block = match[0];
+		const link = match[1];
 		const url = link ? absoluteUrl(link) : '';
 		const aid = aidFromUrl(url);
 		if (!aid || seen[aid]) {
 			continue;
 		}
 		const img = (block.match(/<img\b[^>]*>/i) || [''])[0];
-		const titleLink = (block.match(/<div\b[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*>/i) || [])[0];
-		const title = attr(titleLink, 'title')
+		const htmlText = String(html || '');
+		const nextCard = htmlText.indexOf('<div class="pic_box"', itemRe.lastIndex);
+		const nextPicCtl = htmlText.indexOf('<div class="pic_ctl"', itemRe.lastIndex);
+		const nextLi = htmlText.indexOf('</li>', itemRe.lastIndex);
+		const cardEnd = [nextCard, nextPicCtl, nextLi, htmlText.length].filter(pos => pos >= 0).reduce((min, pos) => Math.min(min, pos), htmlText.length);
+		const tail = htmlText.slice(itemRe.lastIndex, cardEnd);
+		const titleLink = (tail.match(/<div\b[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*>/i) || [])[0];
+		const title = attr(block, 'title')
+			|| attr(titleLink, 'title')
 			|| attr(img, 'alt')
-			|| stripTags((block.match(/<div\b[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || [])[1])
-			|| stripTags((block.match(/<a\b[^>]*href=["'][^"']*photos-index-aid-\d+\.html["'][^>]*>([\s\S]*?)<\/a>/i) || [])[1]);
+			|| stripTags((tail.match(/<div\b[^>]*class=["'][^"']*\btitle\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || [])[1])
+			|| '紳士漫畫';
 		if (!title) {
 			continue;
 		}
 		seen[aid] = true;
-		result.push({
+		const item = {
 			title,
 			url: indexUrlFromAid(aid),
-			coverUrl: cleanImageUrl(attr(img, 'data-original') || attr(img, 'data-src') || attr(img, 'src')) || FALLBACK_COVER,
-			latestChapter: stripTags((block.match(/<div\b[^>]*class=["'][^"']*\binfo_col\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || [])[1])
-		});
+			coverUrl: normalizeListCoverUrl(attr(img, 'data-original') || attr(img, 'data-src') || attr(img, 'src')) || FALLBACK_COVER,
+			latestChapter: stripTags((tail.match(/<div\b[^>]*class=["'][^"']*\binfo_col\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) || [])[1])
+		};
+		if (item.coverUrl && item.coverUrl !== FALLBACK_COVER) {
+			coverCache[item.url] = item.coverUrl;
+		}
+		result.push(item);
 	}
 	return { list: result };
 }
@@ -255,12 +383,12 @@ function parseDescription(html) {
 }
 
 function parseCover(html) {
-	const og = cleanImageUrl((html.match(/<meta\b[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) || [])[1]);
+	const og = cleanCoverUrl((html.match(/<meta\b[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) || [])[1]);
 	if (og) {
 		return og;
 	}
 	const conn = (html.match(/<div\b[^>]*class=["'][^"']*\buwconn\b[^"']*["'][^>]*>[\s\S]*?<img\b[^>]*>/i) || [''])[0];
-	return cleanImageUrl(attr(conn, 'data-original') || attr(conn, 'data-src') || attr(conn, 'src')) || FALLBACK_COVER;
+	return cleanCoverUrl(attr(conn, 'data-original') || attr(conn, 'data-src') || attr(conn, 'src'));
 }
 
 function parseTotalPages(html) {
@@ -297,9 +425,24 @@ function parseImageArrayFromItemScript(text) {
 	return result;
 }
 
+async function loadFirstContentImage(aid, referer) {
+	const cacheKey = itemUrlFromAid(aid);
+	if (chapterImageCache[cacheKey] && chapterImageCache[cacheKey].length) {
+		return chapterImageCache[cacheKey][0].url;
+	}
+	const text = await requestText(cacheKey, referer || indexUrlFromAid(aid));
+	const images = parseImageArrayFromItemScript(text);
+	if (images.length) {
+		chapterImageCache[cacheKey] = images;
+		return images[0].url;
+	}
+	return '';
+}
+
 async function setMangaListFilterOptions() {
 	finish([
-		{ label: '分类', name: 'category', options: CATEGORIES }
+		{ label: '排行', name: 'period', options: RANK_PERIODS },
+		{ label: '分类', name: 'category', options: RANK_CATEGORIES }
 	]);
 }
 
@@ -310,14 +453,29 @@ async function getMangaList(page, pageSize, keyword, rawFilterOptions) {
 		const results = [];
 		const query = String(keyword || '').trim();
 		for (let i = 0; i < pages.length; i++) {
-			const url = query ? buildSearchUrl(pages[i], query) : buildListUrl(pages[i], filterOptions);
-			const parsed = parseMangaList(await requestText(url));
+			const urls = query ? [buildSearchUrl(pages[i], query)] : buildRankingUrls(pages[i], filterOptions);
+			let parsed = { list: [] };
+			let lastError = null;
+			for (let j = 0; j < urls.length; j++) {
+				try {
+					parsed = parseMangaList(await requestText(urls[j]));
+					if (parsed.list.length) {
+						break;
+					}
+				} catch (error) {
+					lastError = error;
+				}
+			}
+			if (!parsed.list.length && lastError) {
+				throw lastError;
+			}
 			if (!parsed.list.length) {
 				break;
 			}
 			results.push(parsed);
 		}
-		finish(mergeListResults(results));
+		const merged = mergeListResults(results);
+		finish(merged);
 	} catch (error) {
 		fail(error);
 	}
@@ -338,10 +496,19 @@ async function getMangaData(dataPageUrl) {
 		const html = await requestText(cacheKey);
 		const title = parseTitle(html, '紳士漫畫');
 		const totalPages = parseTotalPages(html);
+		let coverUrl = coverCache[cacheKey] || '';
+		if (!coverUrl) {
+			try {
+				coverUrl = await loadFirstContentImage(aid, cacheKey);
+			} catch (_) {}
+		}
+		if (!coverUrl) {
+			coverUrl = parseCover(html);
+		}
 		const result = {
 			title,
 			description: parseDescription(html),
-			coverUrl: parseCover(html),
+			coverUrl: coverUrl || FALLBACK_COVER,
 			chapterList: [
 				{
 					title: totalPages ? '全篇（' + totalPages + 'P）' : '全篇',

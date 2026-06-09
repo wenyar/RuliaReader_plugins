@@ -2,7 +2,7 @@
   "name": "@rulia/Manben",
   "title": "漫本",
   "description": "在 Rulia 里阅读 manben.com 的漫画。",
-  "version": "0.0.3",
+  "version": "0.0.1",
   "author": "Codex",
   "icon": "icon.png",
   "cover": "icon.png",

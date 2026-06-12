@@ -1,26 +1,31 @@
-const BASE_URL = 'https://www.mangacopy.com';
-const MIRROR_URL = 'https://www.2026copy.com';
-const API_URL = 'https://api.mangacopy.com';
-const MOBILE_API_URL = 'https://api.2024manga.com';
-const API_MIRROR_URLS = [
-	'https://api.mangacopy.com'
+const BASE_URL = 'https://www.2026copy.com';
+const MIRROR_URL = 'https://www.mangacopy.com';
+const MOBILE_API_URLS = [
+	'https://api.manga2026.xyz',
+	'https://mapi.mangacopy.com',
+	'https://api.manga-copy.com'
 ];
 const FALLBACK_COVER = 'https://s3.mangafunb.fun/static/free.ico';
 const DEFAULT_IMAGE_WIDTH = 800;
 const DEFAULT_IMAGE_HEIGHT = 1200;
 const SITE_PAGE_SIZE = 50;
 const LIST_PAGE_SIZE = 30;
-const REQUEST_TIMEOUT = 15000;
-const CHAPTER_LIST_TIMEOUT = 12000;
+const REQUEST_TIMEOUT = 8000;
+const CHAPTER_LIST_TIMEOUT = 8000;
+const DETAIL_CHAPTER_TIMEOUT = 15000;
+const RETRY_DELAY = 350;
+const MOBILE_RETRY_ROUNDS = 2;
 const DETAIL_KEY = 'op0zzpvv.nmn.00p';
 const CONTENT_KEY = 'op0zzpvv.nmn.00p';
 
 const mangaDataCache = {};
 const chapterListCache = {};
 const chapterImageCache = {};
+const mangaListItemCache = {};
+const ALL_FILTER_VALUE = '__all__';
 
 const THEMES = [
-	{ label: '全部', value: '' },
+	{ label: '全部', value: ALL_FILTER_VALUE },
 	{ label: '愛情', value: 'aiqing' },
 	{ label: '歡樂向', value: 'huanlexiang' },
 	{ label: '冒險', value: 'maoxian' },
@@ -52,8 +57,8 @@ const THEMES = [
 	{ label: '性转换', value: 'xingzhuanhuan' },
 	{ label: '美食', value: 'meishi' },
 	{ label: '励志', value: 'lizhi' },
-	{ label: '彩色', value: 'color' },
-	{ label: '後宫', value: 'hougong' },
+	{ label: '彩色', value: 'COLOR' },
+	{ label: '後宮', value: 'hougong' },
 	{ label: '侦探', value: 'zhentan' },
 	{ label: '惊悚', value: 'jingsong' },
 	{ label: 'AA', value: 'aa' },
@@ -64,47 +69,46 @@ const THEMES = [
 	{ label: '机战', value: 'jizhan' },
 	{ label: '都市', value: 'dushi' },
 	{ label: '穿越', value: 'chuanyue' },
-	{ label: 'C102', value: 'c102' },
+	{ label: 'C102', value: 'comiket102' },
 	{ label: '重生', value: 'chongsheng' },
 	{ label: '恐怖', value: 'kongbu' },
-	{ label: 'C103', value: 'c103' },
+	{ label: 'C103', value: 'comiket103' },
 	{ label: '生存', value: 'shengcun' },
-	{ label: 'C100', value: 'c100' },
-	{ label: 'C104', value: 'c104' },
-	{ label: 'C101', value: 'c101' },
-	{ label: 'C99', value: 'c99' },
-	{ label: 'C97', value: 'c97' },
+	{ label: 'C100', value: 'comiket100' },
+	{ label: 'C104', value: 'comiket104' },
+	{ label: 'C101', value: 'comiket101' },
+	{ label: 'C99', value: 'comiket99' },
+	{ label: 'C97', value: 'comiket97' },
 	{ label: '武侠', value: 'wuxia' },
 	{ label: '宅系', value: 'zhaixi' },
-	{ label: 'C96', value: 'c96' },
-	{ label: 'C105', value: 'c105' },
-	{ label: 'C98', value: 'c98' },
-	{ label: 'C95', value: 'c95' },
+	{ label: 'C96', value: 'comiket96' },
+	{ label: 'C105', value: 'comiket105' },
+	{ label: 'C98', value: 'C98' },
+	{ label: 'C95', value: 'comiket95' },
 	{ label: '转生', value: 'zhuansheng' },
 	{ label: 'FATE', value: 'fate' },
-	{ label: '無修正', value: 'wuxiuzheng' },
+	{ label: '無修正', value: 'Uncensored' },
 	{ label: '仙侠', value: 'xianxia' },
-	{ label: 'LoveLive', value: 'lovelive' },
+	{ label: 'LoveLive', value: 'loveLive' },
 	{ label: '雜誌附贈寫真集', value: 'zazhifuzengxiezhenji' }
 ];
 
 const REGIONS = [
-	{ label: '全部', value: '' },
+	{ label: '全部', value: ALL_FILTER_VALUE },
 	{ label: '日漫', value: '0' },
 	{ label: '韩漫', value: '1' },
 	{ label: '美漫', value: '2' }
 ];
 
 const STATUSES = [
-	{ label: '全部', value: '' },
+	{ label: '全部', value: ALL_FILTER_VALUE },
 	{ label: '连载中', value: '0' },
 	{ label: '已完结', value: '1' },
 	{ label: '短篇', value: '2' }
 ];
 
 const ORDERINGS = [
-	{ label: '最近更新', value: '-datetime_updated' },
-	{ label: '更新时间倒序', value: 'datetime_updated' },
+	{ label: '更新时间', value: 'datetime_updated' },
 	{ label: '热门', value: '-popular' }
 ];
 
@@ -173,33 +177,35 @@ function normalizeRequestUrl(value, base) {
 	return url;
 }
 
+function isMobileApiOrigin(origin) {
+	return MOBILE_API_URLS.indexOf(origin) >= 0;
+}
+
+function mobileApiUrl(baseUrl, path) {
+	return baseUrl + path;
+}
+
 function requestHeaders(referer, requestUrl) {
 	const requestOrigin = requestUrl ? new URL(normalizeRequestUrl(requestUrl)).origin : BASE_URL;
 	const headers = {
-		Referer: referer ? normalizeRequestUrl(referer) : BASE_URL + '/',
 		'User-Agent': 'Mozilla/5.0'
 	};
-	if (/^https:\/\/api\./i.test(requestOrigin)) {
-		headers.platform = '3';
-		headers.version = requestOrigin === MOBILE_API_URL ? '2024.4.28' : '3.0.0';
-		headers.region = '1';
-		headers.source = requestOrigin === MOBILE_API_URL ? 'Official' : 'copyApp';
-		headers.webp = '1';
-		if (requestOrigin === MOBILE_API_URL) {
-			headers.authorization = 'Token';
-			headers['x-requested-with'] = 'com.manga2020.app';
-		}
+	if (referer) {
+		headers.Referer = normalizeRequestUrl(referer);
+	}
+	if (isMobileApiOrigin(requestOrigin)) {
+		headers.Referer = BASE_URL + '/';
 	}
 	return headers;
 }
 
-async function requestText(url, referer, method, headers) {
+async function requestText(url, referer, method, headers, timeout) {
 	const requestUrl = normalizeRequestUrl(url);
 	return await rulia().httpRequest({
 		url: requestUrl,
 		method: method || 'GET',
 		headers: Object.assign(requestHeaders(referer, requestUrl), headers || {}),
-		timeout: REQUEST_TIMEOUT
+		timeout: timeout || REQUEST_TIMEOUT
 	});
 }
 
@@ -214,6 +220,10 @@ function withTimeout(promise, timeout, message) {
 			reject(error);
 		});
 	});
+}
+
+function delay(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function firstResolved(promises) {
@@ -240,6 +250,18 @@ function cleanImageUrl(url) {
 	return absoluteUrl(imageUrl);
 }
 
+function cleanCoverUrl(url) {
+	return cleanImageUrl(url);
+}
+
+function compatibleCoverUrl(url) {
+	const imageUrl = cleanImageUrl(url);
+	if (!imageUrl) {
+		return '';
+	}
+	return imageUrl.replace(/\.(jpg|jpeg|png|webp)\.328x422\.jpg(?:([?#].*)?)$/i, '.$1$2');
+}
+
 function preferCompatibleImageUrl(url) {
 	const imageUrl = cleanImageUrl(url);
 	if (!imageUrl) {
@@ -251,14 +273,45 @@ function preferCompatibleImageUrl(url) {
 }
 
 function parseFilterOptions(rawFilterOptions) {
+	let options = {};
 	if (!rawFilterOptions) {
-		return {};
+		return options;
 	}
 	try {
-		return JSON.parse(rawFilterOptions) || {};
+		options = JSON.parse(rawFilterOptions) || {};
 	} catch (_) {
-		return {};
+		options = {};
 	}
+	options.theme = normalizeFilterValue(options.theme2026 || options.theme, {
+		color: 'COLOR',
+		c102: 'comiket102',
+		c103: 'comiket103',
+		c100: 'comiket100',
+		c104: 'comiket104',
+		c101: 'comiket101',
+		c99: 'comiket99',
+		c97: 'comiket97',
+		c96: 'comiket96',
+		c105: 'comiket105',
+		c98: 'C98',
+		c95: 'comiket95',
+		wuxiuzheng: 'Uncensored',
+		lovelive: 'loveLive'
+	});
+	options.region = normalizeFilterValue(options.region2026 || options.region);
+	options.status = normalizeFilterValue(options.status2026 || options.status);
+	options.ordering = normalizeFilterValue(options.ordering2026 || options.ordering, {
+		'-datetime_updated': 'datetime_updated'
+	}) || 'datetime_updated';
+	return options;
+}
+
+function normalizeFilterValue(value, aliases) {
+	const text = String(value == null ? '' : value).trim();
+	if (!text || text === ALL_FILTER_VALUE || /^all$/i.test(text)) {
+		return '';
+	}
+	return (aliases && aliases[text]) || text;
 }
 
 function sitePagesForRequest(page, pageSize) {
@@ -266,6 +319,10 @@ function sitePagesForRequest(page, pageSize) {
 }
 
 function buildListUrl(page, filterOptions) {
+	return buildHtmlListUrl(page, filterOptions, BASE_URL);
+}
+
+function buildMobileListUrl(baseUrl, page, filterOptions) {
 	const params = new URLSearchParams();
 	const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * LIST_PAGE_SIZE;
 	if (filterOptions.theme) {
@@ -277,15 +334,14 @@ function buildListUrl(page, filterOptions) {
 	if (filterOptions.status) {
 		params.set('status', filterOptions.status);
 	}
-	params.set('ordering', filterOptions.ordering || '-datetime_updated');
+	params.set('ordering', filterOptions.ordering || 'datetime_updated');
 	params.set('offset', String(offset));
 	params.set('limit', String(LIST_PAGE_SIZE));
 	params.set('platform', '3');
-	const query = params.toString();
-	return MOBILE_API_URL + '/api/v3/comics' + (query ? '?' + query : '');
+	return mobileApiUrl(baseUrl, '/api/v3/comics?' + params.toString());
 }
 
-function buildHtmlListUrl(page, filterOptions) {
+function buildHtmlListUrl(page, filterOptions, baseUrl) {
 	const params = new URLSearchParams();
 	const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * LIST_PAGE_SIZE;
 	if (filterOptions.theme) {
@@ -297,21 +353,27 @@ function buildHtmlListUrl(page, filterOptions) {
 	if (filterOptions.status) {
 		params.set('status', filterOptions.status);
 	}
-	params.set('ordering', filterOptions.ordering || '-datetime_updated');
+	params.set('ordering', filterOptions.ordering || 'datetime_updated');
 	params.set('offset', String(offset));
 	params.set('limit', String(LIST_PAGE_SIZE));
 	const query = params.toString();
-	return BASE_URL + '/comics' + (query ? '?' + query : '');
+	return (baseUrl || BASE_URL) + '/comics' + (query ? '?' + query : '');
 }
 
 function buildSearchUrl(page, keyword) {
 	const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * LIST_PAGE_SIZE;
-	const params = new URLSearchParams();
-	params.set('offset', String(offset));
-	params.set('platform', '3');
-	params.set('limit', String(LIST_PAGE_SIZE));
-	params.set('q', keyword);
-	return MOBILE_API_URL + '/api/v3/search/comic?' + params.toString();
+	return BASE_URL + '/api/kb/web/searchci/comics?offset=' + offset
+		+ '&platform=2&limit=' + LIST_PAGE_SIZE
+		+ '&q=' + encodeURIComponent(keyword)
+		+ '&q_type=';
+}
+
+function buildMobileSearchUrl(baseUrl, page, keyword) {
+	const offset = (Math.max(1, parseInt(page, 10) || 1) - 1) * LIST_PAGE_SIZE;
+	return mobileApiUrl(baseUrl, '/api/v3/search/comic?offset=' + offset
+		+ '&platform=3&limit=' + LIST_PAGE_SIZE
+		+ '&q=' + encodeURIComponent(keyword)
+		+ '&q_type=');
 }
 
 function parseMangaPath(url) {
@@ -329,7 +391,7 @@ function normalizeApiItem(item) {
 	return {
 		title: decodeHtml(item.name),
 		url: BASE_URL + '/comic/' + pathWord,
-		coverUrl: cleanImageUrl(item.cover) || FALLBACK_COVER,
+		coverUrl: cleanCoverUrl(item.cover) || FALLBACK_COVER,
 		author: authors.join(' / '),
 		description: item.brief || ''
 	};
@@ -342,6 +404,15 @@ function parseApiMangaList(json) {
 		return { list: [] };
 	}
 	return { list: list.map(normalizeApiItem).filter(Boolean) };
+}
+
+function rememberMangaItems(items) {
+	for (let i = 0; i < (items || []).length; i++) {
+		const item = items[i];
+		if (item && item.url) {
+			mangaListItemCache[item.url] = item;
+		}
+	}
 }
 
 function parseEmbeddedList(html) {
@@ -366,7 +437,7 @@ function parseEmbeddedList(html) {
 		result.push({
 			title: decodeHtml(match[2]),
 			url: BASE_URL + '/comic/' + pathWord,
-			coverUrl: cleanImageUrl(match[3]) || FALLBACK_COVER,
+			coverUrl: cleanCoverUrl(match[3]) || FALLBACK_COVER,
 			author: authors.join(' / ')
 		});
 	}
@@ -396,7 +467,7 @@ function parseHtmlMangaCards(html) {
 		result.push({
 			title,
 			url: BASE_URL + '/comic/' + pathWord,
-			coverUrl: cleanImageUrl(attr(imgHtml, 'data-src') || attr(imgHtml, 'src')) || FALLBACK_COVER,
+			coverUrl: cleanCoverUrl(attr(imgHtml, 'data-src') || attr(imgHtml, 'src')) || FALLBACK_COVER,
 			author: stripTags((block.match(/作者[:：]([\s\S]*?)<\/span>/i) || [])[1])
 		});
 	}
@@ -447,8 +518,8 @@ function parseDescription(html) {
 }
 
 function parseCover(html) {
-	return cleanImageUrl((html.match(/<div\b[^>]*class=["'][^"']*\bcomicParticulars-left-img\b[^"']*["'][^>]*>[\s\S]*?<img\b[^>]*(?:data-src|src)=["']([^"']+)["']/i) || [])[1])
-		|| cleanImageUrl((html.match(/<meta\b[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i) || [])[1])
+	return cleanCoverUrl((html.match(/<div\b[^>]*class=["'][^"']*\bcomicParticulars-left-img\b[^"']*["'][^>]*>[\s\S]*?<img\b[^>]*(?:data-src|src)=["']([^"']+)["']/i) || [])[1])
+		|| cleanCoverUrl((html.match(/<meta\b[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i) || [])[1])
 		|| FALLBACK_COVER;
 }
 
@@ -467,6 +538,9 @@ function makeChapterUrl(pathWord, chapter) {
 function flattenChapterGroups(groups) {
 	const result = [];
 	const seen = {};
+	if (groups && groups.default && Array.isArray(groups.default.chapters) && groups.default.chapters.length) {
+		return groups.default.chapters;
+	}
 	for (const key in groups || {}) {
 		const group = groups[key] || {};
 		const chapters = Array.isArray(group.chapters) ? group.chapters : [];
@@ -532,17 +606,31 @@ function parseMobileMangaData(json, pathWord, chapterList) {
 }
 
 function markFallbackChapterList(list, reason) {
-	if (!Array.isArray(list) || !list.length) {
-		return list || [];
+	if (!Array.isArray(list)) {
+		return [];
 	}
 	if (!reason) {
 		return list;
 	}
-	const message = String(reason).replace(/\s+/g, ' ').slice(0, 60);
-	return list.map((item, index) => index === 0 ? {
-		title: item.title + '（完整目录失败：' + message + '）',
+	return list.map(item => ({
+		title: item.title + '（' + reason + '）',
 		url: item.url
-	} : item);
+	}));
+}
+
+function placeholderChapterList(pathWord, reason) {
+	const suffix = reason ? '（' + reason + '）' : '';
+	return [{
+		title: '开始阅读' + suffix,
+		url: BASE_URL + '/comic/' + encodeURIComponent(pathWord)
+	}];
+}
+
+function ensureChapterList(list, pathWord, reason) {
+	if (Array.isArray(list) && list.length) {
+		return list;
+	}
+	return placeholderChapterList(pathWord, reason);
 }
 
 function parseFallbackChapterList(html) {
@@ -763,66 +851,85 @@ async function aesCbcDecryptHex(payload, keyText, ivAsHex) {
 }
 
 async function decryptDetailPayload(payload) {
-	const modes = [false, true];
-	let lastError = null;
-	for (let i = 0; i < modes.length; i++) {
-		try {
-			const data = JSON.parse(await aesCbcDecryptHex(payload, DETAIL_KEY, modes[i]));
-			const groups = data && (data.groups || (data.build && data.build.groups));
-			if (groups) {
-				for (const key in groups) {
-					if (groups[key] && Array.isArray(groups[key].chapters) && groups[key].chapters.length) {
-						return data;
-					}
-				}
-			}
-			lastError = new Error('章节目录解密结果缺少章节。');
-		} catch (error) {
-			lastError = error;
-		}
-	}
-	throw lastError || new Error('章节目录解密失败。');
+	return JSON.parse(await aesCbcDecryptHex(payload, DETAIL_KEY, false));
 }
 
 async function decryptContentPayload(payload) {
 	return JSON.parse(await aesCbcDecryptHex(payload, CONTENT_KEY, false));
 }
 
-function chapterListRequestForBase(baseUrl, pathWord, dnts) {
+function chapterListRequestForBase(baseUrl, pathWord, timeout) {
 	const apiUrl = baseUrl + '/comicdetail/' + encodeURIComponent(pathWord) + '/chapters';
-	const referer = baseUrl + '/comic/' + encodeURIComponent(pathWord);
-	return requestText(apiUrl, referer, 'GET', {
-		'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-		dnts: String(dnts || '3')
-	});
+	return requestText(apiUrl, null, 'GET', {
+		cookie: 'webp=1',
+		priority: 'u=1, i'
+	}, timeout);
 }
 
-function chapterListRequests(pathWord, dnts) {
+function chapterListRequests(pathWord) {
 	return [
-		chapterListRequestForBase(BASE_URL, pathWord, dnts),
-		chapterListRequestForBase(MIRROR_URL, pathWord, dnts)
+		chapterListRequestForBase(BASE_URL, pathWord),
+		chapterListRequestForBase(MIRROR_URL, pathWord)
 	];
+}
+
+async function request2026ChapterList(pathWord) {
+	const text = await chapterListRequestForBase(BASE_URL, pathWord, DETAIL_CHAPTER_TIMEOUT);
+	return await parseChapterTextToList(text, pathWord);
 }
 
 async function mobileChapterListRequest(pathWord) {
 	if (chapterListCache[pathWord]) {
 		return chapterListCache[pathWord];
 	}
-	const apiUrl = MOBILE_API_URL + '/api/v3/comic/' + encodeURIComponent(pathWord)
-		+ '/group/default/chapters?limit=500&offset=0&platform=3';
-	const text = await requestText(apiUrl, BASE_URL + '/comic/' + encodeURIComponent(pathWord));
-	const list = parseMobileChapterList(JSON.parse(text), pathWord);
-	if (!list.length) {
-		throw new Error('移动端章节目录为空。');
+	let lastError = null;
+	for (let round = 0; round < MOBILE_RETRY_ROUNDS; round++) {
+		for (let i = 0; i < MOBILE_API_URLS.length; i++) {
+			const apiUrl = mobileApiUrl(MOBILE_API_URLS[i], '/api/v3/comic/' + encodeURIComponent(pathWord)
+				+ '/group/default/chapters?limit=500&offset=0&platform=3');
+			try {
+				const text = await requestText(apiUrl, BASE_URL + '/comic/' + encodeURIComponent(pathWord), 'GET', {}, 15000);
+				const list = parseMobileChapterList(JSON.parse(text), pathWord);
+				if (list.length) {
+					chapterListCache[pathWord] = list;
+					return list;
+				}
+				lastError = new Error('移动端章节目录为空。');
+			} catch (error) {
+				lastError = error;
+			}
+		}
+		if (round + 1 < MOBILE_RETRY_ROUNDS) {
+			await delay(RETRY_DELAY);
+		}
 	}
-	chapterListCache[pathWord] = list;
-	return list;
+	throw lastError || new Error('移动端章节目录为空。');
+}
+
+async function mobileJsonRequest(pathBuilder, referer, timeout) {
+	let lastError = null;
+	for (let round = 0; round < MOBILE_RETRY_ROUNDS; round++) {
+		for (let i = 0; i < MOBILE_API_URLS.length; i++) {
+			try {
+				const text = await requestText(pathBuilder(MOBILE_API_URLS[i]), referer, 'GET', {}, timeout || 15000);
+				return JSON.parse(text);
+			} catch (error) {
+				lastError = error;
+			}
+		}
+		if (round + 1 < MOBILE_RETRY_ROUNDS) {
+			await delay(RETRY_DELAY);
+		}
+	}
+	throw lastError || new Error('移动端接口请求失败。');
 }
 
 async function mobileMangaDataRequest(pathWord) {
-	const apiUrl = MOBILE_API_URL + '/api/v3/comic/' + encodeURIComponent(pathWord) + '?platform=3';
-	const text = await requestText(apiUrl, BASE_URL + '/comic/' + encodeURIComponent(pathWord));
-	return JSON.parse(text);
+	return await mobileJsonRequest(
+		baseUrl => mobileApiUrl(baseUrl, '/api/v3/comic/' + encodeURIComponent(pathWord) + '?platform=3'),
+		BASE_URL + '/comic/' + encodeURIComponent(pathWord),
+		15000
+	);
 }
 
 async function parseChapterTextToList(text, pathWord) {
@@ -859,19 +966,45 @@ async function firstValidChapterList(promises, pathWord) {
 }
 
 async function loadChapterList(pathWord, detailHtml, chapterTextPromises, skipMobile) {
-	if (!skipMobile) {
+	if (!chapterTextPromises) {
 		try {
-			return await mobileChapterListRequest(pathWord);
+			const webList = await withTimeout(
+				chapterListRequestForBase(BASE_URL, pathWord, DETAIL_CHAPTER_TIMEOUT)
+					.then(text => parseChapterTextToList(text, pathWord)),
+				DETAIL_CHAPTER_TIMEOUT,
+				'章节目录接口响应超时。'
+			);
+			if (webList.length) {
+				chapterListCache[pathWord] = webList;
+				return webList;
+			}
+		} catch (_) {}
+		if (!skipMobile) {
+			try {
+				return await mobileChapterListRequest(pathWord);
+			} catch (_) {}
+		}
+		try {
+			const mirrorList = await withTimeout(
+				chapterListRequestForBase(MIRROR_URL, pathWord, CHAPTER_LIST_TIMEOUT)
+					.then(text => parseChapterTextToList(text, pathWord)),
+				CHAPTER_LIST_TIMEOUT,
+				'章节目录备用接口响应超时。'
+			);
+			if (mirrorList.length) {
+				chapterListCache[pathWord] = mirrorList;
+				return mirrorList;
+			}
 		} catch (_) {}
 	}
 	try {
-		const requests = chapterTextPromises || chapterListRequests(pathWord, parseDnts(detailHtml));
-		return await withTimeout(firstValidChapterList(requests, pathWord), CHAPTER_LIST_TIMEOUT, '章节目录接口响应超时。');
+		const requests = chapterTextPromises || chapterListRequests(pathWord);
+		const list = await withTimeout(firstValidChapterList(requests, pathWord), skipMobile ? DETAIL_CHAPTER_TIMEOUT : CHAPTER_LIST_TIMEOUT, '章节目录接口响应超时。');
+		if (list.length) {
+			chapterListCache[pathWord] = list;
+		}
+		return list;
 	} catch (_) {}
-	const fallback = parseFallbackChapterList(detailHtml);
-	if (fallback.length) {
-		return markFallbackChapterList(fallback, '');
-	}
 	throw new Error('无法解析章节目录。');
 }
 
@@ -891,27 +1024,6 @@ function normalizeImageItems(items) {
 			height: Number(item && item.height) || DEFAULT_IMAGE_HEIGHT
 		};
 	}).filter(item => item.url);
-}
-
-function findImageArray(value) {
-	if (!value || typeof value !== 'object') {
-		return [];
-	}
-	if (Array.isArray(value)) {
-		return value.length && typeof value[0] === 'object' ? value : [];
-	}
-	const direct = value.contents || value.words || value.images || value.list || value.results;
-	const found = findImageArray(direct);
-	if (found.length) {
-		return found;
-	}
-	for (const key in value) {
-		const child = findImageArray(value[key]);
-		if (child.length) {
-			return child;
-		}
-	}
-	return [];
 }
 
 function parseChapterParts(chapterUrl) {
@@ -934,31 +1046,10 @@ function chapterReadUrls(chapterUrl) {
 	];
 }
 
-async function requestChapterImageApi(chapterUrl) {
-	const parts = parseChapterParts(chapterUrl);
-	if (!parts) {
-		return [];
-	}
-	let lastError = null;
-	for (let i = 0; i < API_MIRROR_URLS.length; i++) {
-		try {
-			const apiUrl = API_MIRROR_URLS[i] + '/api/v3/comic/' + encodeURIComponent(parts.pathWord)
-				+ '/chapter2/' + encodeURIComponent(parts.chapterId) + '?platform=3';
-			const text = await requestText(apiUrl, chapterUrl);
-			const json = JSON.parse(text);
-			const images = normalizeImageItems(findImageArray(json && (json.results || json.data || json)));
-			if (images.length) {
-				return images;
-			}
-			lastError = new Error('章节图片 API 没有返回图片。');
-		} catch (error) {
-			lastError = error;
-		}
-	}
-	if (lastError) {
-		throw lastError;
-	}
-	return [];
+async function requestChapterReadHtml(url) {
+	return await requestText(url, url, 'GET', {
+		Cookie: 'webp=1'
+	}, 15000);
 }
 
 async function requestMobileChapterImages(chapterUrl) {
@@ -966,32 +1057,90 @@ async function requestMobileChapterImages(chapterUrl) {
 	if (!parts) {
 		return [];
 	}
-	const apiUrl = MOBILE_API_URL + '/api/v3/comic/' + encodeURIComponent(parts.pathWord)
-		+ '/chapter/' + encodeURIComponent(parts.chapterId) + '?platform=3';
-	const text = await requestText(apiUrl, chapterUrl);
-	const json = JSON.parse(text);
-	const images = normalizeImageItems(findImageArray(json && (json.results || json.data || json)));
-	if (!images.length) {
-		throw new Error('移动端章节图片为空。');
+	let lastError = null;
+	for (let round = 0; round < MOBILE_RETRY_ROUNDS; round++) {
+		for (let i = 0; i < MOBILE_API_URLS.length; i++) {
+			const apiUrl = mobileApiUrl(MOBILE_API_URLS[i], '/api/v3/comic/' + encodeURIComponent(parts.pathWord)
+				+ '/chapter/' + encodeURIComponent(parts.chapterId) + '?platform=3');
+			try {
+				const text = await requestText(apiUrl, chapterUrl, 'GET', {}, 15000);
+				const json = JSON.parse(text);
+				const results = json && json.results;
+				const chapter = results && results.chapter;
+				const images = normalizeImageItems(chapter && chapter.contents);
+				if (images.length) {
+					return images;
+				}
+				lastError = new Error('移动端章节图片为空。');
+			} catch (error) {
+				lastError = error;
+			}
+		}
+		if (round + 1 < MOBILE_RETRY_ROUNDS) {
+			await delay(RETRY_DELAY);
+		}
 	}
-	return images;
+	throw lastError || new Error('移动端章节图片为空。');
+}
+
+async function resolveChapterUrl(chapterUrl) {
+	const normalized = normalizeRequestUrl(chapterUrl);
+	if (parseChapterParts(normalized)) {
+		return normalized;
+	}
+	const pathWord = parseMangaPath(normalized);
+	if (!pathWord) {
+		return normalized;
+	}
+	try {
+		const html = await requestMangaDetailHtml(normalized, pathWord);
+		const fallback = parseFallbackChapterList(html);
+		if (fallback.length && fallback[0].url) {
+			return fallback[0].url;
+		}
+	} catch (_) {
+		return normalized;
+	}
+	return normalized;
 }
 
 async function requestMangaDetailHtml(mangaUrl, pathWord) {
-	try {
-		return await requestText(mangaUrl);
-	} catch (error) {
-		const mirrorUrl = MIRROR_URL + '/comic/' + encodeURIComponent(pathWord);
-		return await requestText(mirrorUrl);
+	let lastError = null;
+	const primaryUrl = mangaUrl ? normalizeRequestUrl(mangaUrl) : BASE_URL + '/comic/' + encodeURIComponent(pathWord);
+	const urls = [
+		primaryUrl,
+		BASE_URL + '/comic/' + encodeURIComponent(pathWord),
+		MIRROR_URL + '/comic/' + encodeURIComponent(pathWord)
+	];
+	const seen = {};
+	for (let round = 0; round < 2; round++) {
+		for (let i = 0; i < urls.length; i++) {
+			const url = urls[i];
+			if (!url || (round === 0 && seen[url])) {
+				continue;
+			}
+			seen[url] = true;
+			try {
+				return await withTimeout(
+					requestText(url, BASE_URL + '/comics', 'GET', { Cookie: 'webp=1' }, 9000),
+					9500,
+					'详情页请求超时。'
+				);
+			} catch (error) {
+				lastError = error;
+			}
+		}
+		await delay(RETRY_DELAY);
 	}
+	throw lastError || new Error('详情页请求失败。');
 }
 
 async function setMangaListFilterOptions() {
 	finish([
-		{ label: '题材', name: 'theme', options: THEMES },
-		{ label: '地区', name: 'region', options: REGIONS },
-		{ label: '状态', name: 'status', options: STATUSES },
-		{ label: '排序', name: 'ordering', options: ORDERINGS }
+		{ label: '题材', name: 'theme2026', options: THEMES },
+		{ label: '地区', name: 'region2026', options: REGIONS },
+		{ label: '状态', name: 'status2026', options: STATUSES },
+		{ label: '排序', name: 'ordering2026', options: ORDERINGS }
 	]);
 }
 
@@ -1004,23 +1153,16 @@ async function getMangaList(page, pageSize, keyword, rawFilterOptions) {
 			const listPage = pages[i];
 			let parsed;
 			if (keyword) {
-				const text = await requestText(buildSearchUrl(listPage, keyword));
+				const text = await requestText(buildSearchUrl(listPage, keyword), BASE_URL + '/search?q=' + encodeURIComponent(keyword), 'GET', {}, 8000);
 				parsed = parseApiMangaList(JSON.parse(text));
-			} else if (filterOptions.status) {
-				const html = await requestText(buildHtmlListUrl(listPage, filterOptions));
-				parsed = parseMangaList(html);
 			} else {
-				try {
-					const text = await requestText(buildListUrl(listPage, filterOptions));
-					parsed = parseApiMangaList(JSON.parse(text));
-				} catch (_) {
-					const html = await requestText(buildHtmlListUrl(listPage, filterOptions));
-					parsed = parseMangaList(html);
-				}
+				const html = await requestText(buildListUrl(listPage, filterOptions), BASE_URL + '/comics', 'GET', {}, 8000);
+				parsed = parseMangaList(html);
 			}
 			if (!parsed.list.length) {
 				break;
 			}
+			rememberMangaItems(parsed.list);
 			results.push(parsed);
 		}
 		finish(mergeListResults(results));
@@ -1040,22 +1182,72 @@ async function getMangaData(dataPageUrl) {
 		if (!pathWord) {
 			throw new Error('无法解析漫画地址。');
 		}
-		let result;
+		let chapterList = [];
+		let html = '';
+		let chapterListError = null;
 		try {
-			const detailPromise = mobileMangaDataRequest(pathWord);
-			const chapterListPromise = mobileChapterListRequest(pathWord);
-			const detailJson = await detailPromise;
-			const chapterList = await chapterListPromise;
-			result = parseMobileMangaData(detailJson, pathWord, chapterList);
-		} catch (_) {
-			const html = await requestMangaDetailHtml(mangaUrl, pathWord);
-			result = {
-				title: parseTitle(html, pathWord),
-				description: parseDescription(html),
-				coverUrl: parseCover(html),
-				chapterList: await loadChapterList(pathWord, html, null, false)
+			html = await requestMangaDetailHtml(mangaUrl, pathWord);
+		} catch (error) {
+			const cached = mangaListItemCache[mangaUrl] || {};
+			try {
+				chapterList = await mobileChapterListRequest(pathWord);
+			} catch (chapterError) {
+				chapterListError = chapterError;
+			}
+			try {
+				const detailJson = await mobileMangaDataRequest(pathWord);
+				const result = parseMobileMangaData(
+					detailJson,
+					pathWord,
+					ensureChapterList(chapterList, pathWord, chapterListError ? '章节接口返回空目录' : '')
+				);
+				mangaDataCache[mangaUrl] = result;
+				finish(result);
+				return;
+			} catch (_) {}
+			const result = {
+				title: cached.title || pathWord,
+				description: cached.description || '',
+				coverUrl: cached.coverUrl || FALLBACK_COVER,
+				chapterList: ensureChapterList(chapterList, pathWord, '详情页请求失败')
 			};
+			mangaDataCache[mangaUrl] = result;
+			finish(result);
+			return;
 		}
+		try {
+			chapterList = await withTimeout(
+				mobileChapterListRequest(pathWord),
+				DETAIL_CHAPTER_TIMEOUT,
+				'章节目录接口响应超时。'
+			);
+		} catch (error) {
+			chapterListError = error;
+		}
+		if (!chapterList.length) {
+			try {
+				chapterList = await withTimeout(
+					request2026ChapterList(pathWord),
+					DETAIL_CHAPTER_TIMEOUT,
+					'网页章节目录接口响应超时。'
+				);
+			} catch (error) {
+				chapterListError = error;
+			}
+		}
+		if (!chapterList.length) {
+			chapterList = parseFallbackChapterList(html);
+			if (chapterList.length && chapterListError) {
+				chapterList = markFallbackChapterList(chapterList, '目录接口失败：' + (chapterListError.message || String(chapterListError)));
+			}
+		}
+		chapterList = ensureChapterList(chapterList, pathWord, '章节接口返回空目录');
+		const result = {
+			title: parseTitle(html, pathWord),
+			description: parseDescription(html),
+			coverUrl: parseCover(html),
+			chapterList
+		};
 		mangaDataCache[mangaUrl] = result;
 		finish(result);
 	} catch (error) {
@@ -1065,22 +1257,16 @@ async function getMangaData(dataPageUrl) {
 
 async function getChapterImageList(chapterUrl) {
 	try {
-		const normalizedChapterUrl = normalizeRequestUrl(chapterUrl);
+		const normalizedChapterUrl = await resolveChapterUrl(chapterUrl);
 		if (chapterImageCache[normalizedChapterUrl]) {
 			finish(chapterImageCache[normalizedChapterUrl]);
 			return;
 		}
-		try {
-			const mobileImages = await requestMobileChapterImages(normalizedChapterUrl);
-			chapterImageCache[normalizedChapterUrl] = mobileImages;
-			finish(mobileImages);
-			return;
-		} catch (_) {}
 		const urls = chapterReadUrls(normalizedChapterUrl);
 		let encrypted = '';
 		for (let i = 0; i < urls.length; i++) {
 			try {
-				const html = await requestText(urls[i], urls[i]);
+				const html = await requestChapterReadHtml(urls[i]);
 				encrypted = parseContentKey(html);
 				if (encrypted) {
 					break;
@@ -1088,18 +1274,13 @@ async function getChapterImageList(chapterUrl) {
 			} catch (_) {}
 		}
 		if (!encrypted) {
-			let apiImages = [];
 			try {
-				apiImages = await requestChapterImageApi(normalizedChapterUrl);
-			} catch (_) {
-				apiImages = [];
-			}
-			if (apiImages.length) {
-				chapterImageCache[normalizedChapterUrl] = apiImages;
-				finish(apiImages);
+				const mobileImages = await requestMobileChapterImages(normalizedChapterUrl);
+				chapterImageCache[normalizedChapterUrl] = mobileImages;
+				finish(mobileImages);
 				return;
-			}
-			throw new Error('站点返回空阅读页，无法解析章节图片参数。');
+			} catch (_) {}
+			throw new Error('站点返回空阅读页，contentKey 为空，无法解析章节图片参数。');
 		}
 		const images = normalizeImageItems(await decryptContentPayload(encrypted));
 		if (!images.length) {
@@ -1113,5 +1294,9 @@ async function getChapterImageList(chapterUrl) {
 }
 
 async function getImageUrl(path) {
+	if (/\/cover\//i.test(String(path || ''))) {
+		finish(compatibleCoverUrl(path) || cleanCoverUrl(path) || path);
+		return;
+	}
 	finish(path);
 }

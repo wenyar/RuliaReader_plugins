@@ -233,6 +233,18 @@ function parseFilterOptions(rawFilterOptions) {
 	}
 }
 
+function cloneOptions(options) {
+	return options.map(option => ({ label: option.label, value: option.value }));
+}
+
+function filterGroup(label, name, options) {
+	return {
+		label,
+		name,
+		options: cloneOptions(options)
+	};
+}
+
 function sitePagesForRequest(page, pageSize) {
 	const requestedSize = Math.max(1, parseInt(pageSize, 10) || SITE_PAGE_SIZE);
 	const sourcePageCount = Math.max(1, Math.ceil(requestedSize / SITE_PAGE_SIZE));
@@ -421,9 +433,9 @@ function parseChapterImages(html) {
 
 async function setMangaListFilterOptions() {
 	finish([
-		{ label: '分类', name: 'category', options: CATEGORIES },
-		{ label: '状态', name: 'status', options: STATUS_OPTIONS },
-		{ label: '排序', name: 'order', options: ORDER_OPTIONS }
+		filterGroup('分类', 'category', CATEGORIES),
+		filterGroup('状态', 'status', STATUS_OPTIONS),
+		filterGroup('排序', 'order', ORDER_OPTIONS)
 	]);
 }
 

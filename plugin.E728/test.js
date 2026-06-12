@@ -53,7 +53,7 @@ async function main() {
 	const pkg = JSON.parse(fs.readFileSync(path.join(BASE_DIR, 'package.json'), 'utf8'));
 	assert.strictEqual(pkg.name, '@rulia/E728');
 	assert.strictEqual(pkg.title, '漫画屋');
-	assert.strictEqual(pkg.version, '0.1.16');
+	assert.strictEqual(pkg.version, '0.1.17');
 	assert.strictEqual(pkg.icon, 'icon.png');
 	assert.strictEqual(pkg.cover, 'icon.png');
 	assert.strictEqual(pkg.homepage, 'https://www.e728.com/');
@@ -91,6 +91,12 @@ async function main() {
 	assert.ok(filters[0].options.some(option => option.label === '燃向' && option.value === '313'), 'missing category 燃向');
 	assert.strictEqual(filters[1].name, 'status');
 	assert.strictEqual(filters[2].name, 'order');
+	const originalCategoryCount = filters[0].options.length;
+	filters[0].options.length = 0;
+	filters[1].options[0].label = 'mutated';
+	const reopenedFilters = await call(context, 'setMangaListFilterOptions', []);
+	assert.strictEqual(reopenedFilters[0].options.length, originalCategoryCount, 'reopened category options should not be emptied by host mutation');
+	assert.strictEqual(reopenedFilters[1].options[0].label, '全部', 'reopened status options should not reuse mutated option objects');
 
 	const list = await call(context, 'getMangaList', [1, 12, '', '']);
 	assert.ok(list.list.length > 0, 'empty default list');

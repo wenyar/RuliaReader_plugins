@@ -55,7 +55,7 @@ async function main() {
 	const pkg = JSON.parse(fs.readFileSync(path.join(BASE_DIR, 'package.json'), 'utf8'));
 	assert.strictEqual(pkg.name, '@rulia/Manben');
 	assert.strictEqual(pkg.title, '漫本');
-	assert.strictEqual(pkg.version, '0.0.3');
+	assert.strictEqual(pkg.version, '0.0.4');
 	assert.strictEqual(pkg.icon, 'icon.png');
 	assert.strictEqual(pkg.cover, 'icon.png');
 	assert.strictEqual(pkg.homepage, 'https://www.manben.com/');
@@ -111,6 +111,10 @@ async function main() {
 	assert.ok(sampleDetail.chapterList.length > 0, 'sample detail chapter list empty');
 	assert.ok(/山海之间/.test(sampleDetail.description), 'sample description missing real summary');
 	assert.ok(!/class=|第\d+回|排行榜|人气：/.test(sampleDetail.description), 'sample description contains page noise');
+
+	const xianjianDetail = await call(context, 'getMangaData', ['https://www.manben.com/mh-xianjianqixiachuansi/']);
+	assert.ok(/\/82\/81158\//.test(xianjianDetail.coverUrl), 'xianjian cover should come from its comicInfo block: ' + xianjianDetail.coverUrl);
+	assert.ok(!/\/34\/33771\//.test(xianjianDetail.coverUrl), 'xianjian cover should not use yaoshenji sidebar cover');
 
 	const yaoshenDetail = await call(context, 'getMangaData', ['https://www.manben.com/mh-yaoshenji/']);
 	assert.ok(/妖神一出/.test(yaoshenDetail.description), 'yaoshen description missing real summary');

@@ -277,7 +277,10 @@ function parseTitle(html, fallback) {
 }
 
 function parseCover(html) {
-	return cleanImageUrl((html.match(/<div\b[^>]*class=["'][^"']*\bcover\b[^"']*["'][^>]*>[\s\S]*?<img\b[^>]*src=["']([^"']+)["']/i) || [])[1])
+	const infoHtml = parseComicInfo(html);
+	const infoCover = (infoHtml.match(/<div\b[^>]*class=["'][^"']*\bcover\b[^"']*["'][^>]*>[\s\S]*?<img\b[^>]*src=["']([^"']+)["']/i) || [])[1]
+		|| (infoHtml.match(/<img\b[^>]*src=["']([^"']+)["'][^>]*>/i) || [])[1];
+	return cleanImageUrl(infoCover)
 		|| cleanImageUrl((html.match(/<meta\b[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i) || [])[1])
 		|| cleanImageUrl((html.match(/<img\b[^>]*alt=["'][^"']*["'][^>]*src=["']([^"']*_\d+x\d+[^"']*)["']/i) || [])[1])
 		|| FALLBACK_COVER;

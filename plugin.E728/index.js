@@ -10,6 +10,7 @@ const mangaDataCache = {};
 const chapterImageCache = {};
 const listMaxPageCache = {};
 let listPageBase = null;
+const ALL_FILTER_VALUE = '__all__';
 
 const BAD_COVER_PATHS = {
 	'/comic/cover/jueshiwushen.webp': true,
@@ -18,7 +19,7 @@ const BAD_COVER_PATHS = {
 };
 
 const CATEGORIES = [
-	{ label: '全部', value: '' },
+	{ label: '全部', value: ALL_FILTER_VALUE },
 	{ label: '热血', value: '6' }, { label: '冒险', value: '7' }, { label: '科幻', value: '8' }, { label: '霸总', value: '9' },
 	{ label: '玄幻', value: '10' }, { label: '校园', value: '11' }, { label: '修真', value: '12' }, { label: '搞笑', value: '13' },
 	{ label: '穿越', value: '14' }, { label: '后宫', value: '15' }, { label: '耽美', value: '16' }, { label: '恋爱', value: '17' },
@@ -95,7 +96,7 @@ const CATEGORIES = [
 ];
 
 const STATUS_OPTIONS = [
-	{ label: '全部', value: '' },
+	{ label: '全部', value: ALL_FILTER_VALUE },
 	{ label: '连载中', value: '1' },
 	{ label: '已完结', value: '2' }
 ];
@@ -220,17 +221,32 @@ async function requestText(url, referer) {
 }
 
 function parseFilterOptions(rawFilterOptions) {
+	let options = {};
 	if (!rawFilterOptions) {
-		return {};
+		return options;
 	}
 	if (typeof rawFilterOptions !== 'string') {
-		return rawFilterOptions || {};
+		options = rawFilterOptions || {};
+	} else {
+		try {
+			options = JSON.parse(rawFilterOptions) || {};
+		} catch (_) {
+			options = {};
+		}
 	}
-	try {
-		return JSON.parse(rawFilterOptions) || {};
-	} catch (_) {
-		return {};
+	return {
+		category: normalizeFilterValue(options.category2026 || options.category),
+		status: normalizeFilterValue(options.status2026 || options.status),
+		order: normalizeFilterValue(options.order2026 || options.order) || 'hits'
+	};
+}
+
+function normalizeFilterValue(value) {
+	const text = String(value == null ? '' : value).trim();
+	if (!text || text === ALL_FILTER_VALUE || /^all$/i.test(text)) {
+		return '';
 	}
+	return text;
 }
 
 function cloneOptions(options) {
@@ -433,9 +449,9 @@ function parseChapterImages(html) {
 
 async function setMangaListFilterOptions() {
 	finish([
-		filterGroup('分类', 'category', CATEGORIES),
-		filterGroup('状态', 'status', STATUS_OPTIONS),
-		filterGroup('排序', 'order', ORDER_OPTIONS)
+		filterGroup('分类', 'category2026', CATEGORIES),
+		filterGroup('状态', 'status2026', STATUS_OPTIONS),
+		filterGroup('排序', 'order2026', ORDER_OPTIONS)
 	]);
 }
 

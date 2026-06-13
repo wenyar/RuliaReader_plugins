@@ -53,7 +53,7 @@ async function main() {
 	const pkg = JSON.parse(fs.readFileSync(path.join(BASE_DIR, 'package.json'), 'utf8'));
 	assert.strictEqual(pkg.name, '@rulia/E728');
 	assert.strictEqual(pkg.title, '漫画屋');
-	assert.strictEqual(pkg.version, '0.1.17');
+	assert.strictEqual(pkg.version, '0.1.18');
 	assert.strictEqual(pkg.icon, 'icon.png');
 	assert.strictEqual(pkg.cover, 'icon.png');
 	assert.strictEqual(pkg.homepage, 'https://www.e728.com/');
@@ -86,11 +86,14 @@ async function main() {
 
 	const filters = await call(context, 'setMangaListFilterOptions', []);
 	assert.ok(Array.isArray(filters) && filters.length === 3, 'filters invalid');
-	assert.strictEqual(filters[0].name, 'category');
+	assert.strictEqual(filters[0].name, 'category2026');
+	assert.strictEqual(filters[0].options[0].label, '全部');
+	assert.strictEqual(filters[0].options[0].value, '__all__');
 	assert.ok(filters[0].options.length > 250, 'category options should be complete');
 	assert.ok(filters[0].options.some(option => option.label === '燃向' && option.value === '313'), 'missing category 燃向');
-	assert.strictEqual(filters[1].name, 'status');
-	assert.strictEqual(filters[2].name, 'order');
+	assert.strictEqual(filters[1].name, 'status2026');
+	assert.strictEqual(filters[1].options[0].value, '__all__');
+	assert.strictEqual(filters[2].name, 'order2026');
 	const originalCategoryCount = filters[0].options.length;
 	filters[0].options.length = 0;
 	filters[1].options[0].label = 'mutated';
@@ -134,10 +137,10 @@ async function main() {
 	assert.ok(lastPage.list.length > 0, 'last category page should not be empty');
 	assert.strictEqual(afterLastPage.list.length, 0, 'after last category page should be empty');
 
-	const filtered = await call(context, 'getMangaList', [1, 12, '', JSON.stringify({ category: '6' })]);
+	const filtered = await call(context, 'getMangaList', [1, 12, '', JSON.stringify({ category2026: '6' })]);
 	assert.ok(filtered.list.length > 0, 'empty filtered list');
 
-	const combinedFiltered = await call(context, 'getMangaList', [1, 12, '', JSON.stringify({ category: '6', status: '1', order: 'addtime' })]);
+	const combinedFiltered = await call(context, 'getMangaList', [1, 12, '', JSON.stringify({ category2026: '6', status2026: '1', order2026: 'addtime' })]);
 	assert.ok(combinedFiltered.list.length > 0, 'empty combined filtered list');
 
 	const search = await call(context, 'getMangaList', [1, 12, '斗破', '']);

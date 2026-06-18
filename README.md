@@ -17,7 +17,6 @@
 
 | 插件 | 对应网站 | 目录 | 状态 | 说明 | 注意事项 |
 | --- | --- | --- | --- | --- | --- |
-| 二次元動漫 | [2animx.com](https://www.2animx.com/) | `plugin.2Animx` | 可用 | 支持漫画大全、筛选、搜索、详情、章节目录和章节图片。 | 章节页图片需从 `img.2animx.com` 改写到 `www.2animx.com/upload/...` 后直连；部分旧图若返回伪 `404` 图片会尝试同页数重传章节兜底。 |
 | 包子漫画 | [baozimh.org](https://baozimh.org/) | `plugin.Baozi` | 可用 | 支持浏览、搜索、详情、章节目录和章节图片。 | 源站接口或图片域名可能变化；如果图片加载失败，优先检查源站是否可访问。 |
 | 咚漫漫画 | [dongmanmanhua.cn](https://www.dongmanmanhua.cn/) | `plugin.Dongman` | 可用 | 支持分类浏览、关键词搜索、详情和章节图片。 | 分类页会返回完整列表，插件本地分页；部分作品可能受版权、地区或站点策略影响。 |
 | 漫画屋 | [e728.com](https://www.e728.com/) | `plugin.E728` | 可用 | 支持分类浏览、常用入口筛选、搜索、详情、章节目录和章节图片。 | 章节图片来自 `manhua.5um.net`，封面来自 `comic.5um.net`；若图片 CDN 调整，需要更新解析规则。 |
@@ -28,7 +27,6 @@
 | 漫本 | [manben.com](https://www.manben.com/) | `plugin.Manben` | 可用 | 支持分类、搜索、详情、章节目录和章节图片。 | 章节图片逐页调用源站 `imageshow.ashx`，图片 CDN 地址和 key 由源站动态返回，可能随时间失效。 |
 | 漫画站 | [manhuazhan.org](https://www.manhuazhan.org/) | `plugin.Manhuazhan` | 可用 | 支持分类、状态筛选、详情、章节列表和章节图片解密解析。 | 图片解析依赖源站页面脚本和加密规则，源站改版后可能失效。 |
 | nHentai | [nhentai.net](https://nhentai.net/) | `plugin.Nhentai` | 可能需要代理 | 使用官方域名和 API，支持语言、标签、排序、搜索、详情和图片读取。 | 成人内容源；在部分网络环境可能需要代理；API 可能限流，插件会尽量使用缓存兜底。 |
-| Se8 | [se8.us](https://se8.us/) | `plugin.Se8` | 可能需要代理 | 支持分类浏览、标题搜索、详情页、章节列表和章节图片解析。 | 成人内容源；部分网络环境可能需要代理；图片依赖源站 `lazy-read` 地址。 |
 | vomic漫 | [vomicmh.com](https://vomicmh.com/) | `plugin.Vomic` | 需要登录 | 支持浏览、分类、搜索、详情、章节目录和章节图片。 | 章节图片需要登录态；请在 RuliaReader 中为 `vomicmh.com` 保存 `_token` cookie，插件不会保存账号、密码或 token。 |
 | 紳士漫畫 | [wnacg.com](https://www.wnacg.com/) | `plugin.Wnacg` | 需要 cookie | 支持分类浏览、搜索、详情和整本图片列表解析。 | 成人内容源；源站有 Cloudflare 验证，请先在 Rulia 共享的浏览器中完成验证并保存 cookie。 |
 

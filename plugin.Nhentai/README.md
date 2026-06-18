@@ -10,12 +10,12 @@
 
 - 列表 API：无关键词、无筛选且按最新排序时请求 `https://nhentai.net/api/v2/galleries?page={page}`。
 - 搜索 API：关键词或筛选请求 `https://nhentai.net/api/v2/search?query={query}&sort={sort}&page={page}`。
-- 筛选项：`language` 会拼接为 `language:"{value}"`；`tag` 会拼接为 `tag:"{value}"`；`sort` 支持最新、今日流行、本周流行、总人气。
+- 筛选项：`language` 会拼接为 `language:"{value}"`；`tag` 会拼接为 `tag:"{value}"`；`sort` 支持最新、今日流行、本周流行、总人气。标签下拉保留常用热门标签，避免超长选项列表导致宿主下拉渲染为空；“全部”使用非空哨兵值持久化，请求前再归一化为空筛选。
 - 详情 API：详情页 URL 中提取 `/g/{id}/`，再请求 `https://nhentai.net/api/v2/galleries/{id}`。
 - 章节图片：nHentai 单个 gallery 在 Rulia 中作为一章“全篇”，图片来自详情 API 中的 `media_id` 与 `images.pages`。
 - 图片地址：图片域使用 `https://i.nhentai.net/galleries/{media_id}/{page}.{ext}`；缩略图使用 `https://t.nhentai.net/`；`getImageUrl` 直接返回最终地址。
 - 核心逻辑：内置请求队列和最小请求间隔，遇到 429 或限流会按退避延迟重试；列表和详情结果会缓存，限流时尽量使用缓存兜底。
-- 筛选兼容：`getMangaList` 同时兼容旧版 `(page, keyword)`、三参数 `(page, keyword, filters)` 和四参数 `(page, pageSize, keyword, filters)` 调用；筛选参数可为对象、JSON 字符串或 `name/value` 数组。
+- 筛选兼容：`getMangaList` 同时兼容旧版 `(page, keyword)`、三参数 `(page, keyword, filters)`、三参数 `(page, pageSize, filters)` 和四参数 `(page, pageSize, keyword, filters)` 调用；筛选参数可为对象、JSON 字符串、中文字段名或 `name/value` 数组。
 - Payload：章节 URL 使用源站 gallery URL `https://nhentai.net/g/{id}/`，不额外封装自定义 payload。
 - 已知限制：成人内容源；部分网络环境可能需要代理；官方 API 可能限流；标签列表较长，源站标签变动后需要同步维护。
 
@@ -29,3 +29,5 @@
 
 - 0.0.1：按插件规范补全文档，保持版本号为初始版本。
 - 0.0.2：修复宿主筛选参数格式变化时标签筛选被忽略的问题，增强三参数和四参数调用兼容。
+- 0.0.3：缩减标签下拉为稳定热门集合，兼容中文筛选字段，并修复三参数筛选调用把 pageSize 当作关键词的问题。
+- 0.0.4：修复选择“全部”后宿主持久化空值，重启后下拉当前值无法匹配导致筛选显示异常的问题。

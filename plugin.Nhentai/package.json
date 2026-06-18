@@ -2,7 +2,7 @@
   "name": "@rulia/Nhentai",
   "title": "nHentai",
   "description": "在 Rulia 里阅读 nhentai.net 的作品，使用 nhentai.net 官方域名和 API。",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "author": "Codex",
   "icon": "icon.png",
   "cover": "icon.png",

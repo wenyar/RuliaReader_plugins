@@ -7,6 +7,7 @@ const DEFAULT_WIDTH = 1200;
 const DEFAULT_HEIGHT = 1800;
 const MIN_REQUEST_INTERVAL = 1500;
 const RETRY_DELAYS = [3000, 7000, 12000];
+const ALL_FILTER_VALUE = '__all__';
 
 const galleryCache = {};
 const responseCache = {};
@@ -14,7 +15,7 @@ let requestQueue = Promise.resolve();
 let lastRequestTime = 0;
 
 const LANGUAGES = [
-  { label: '全部', value: '' },
+  { label: '全部', value: ALL_FILTER_VALUE },
   { label: 'English', value: 'english' },
   { label: 'Japanese', value: 'japanese' },
   { label: 'Chinese', value: 'chinese' }
@@ -22,7 +23,9 @@ const LANGUAGES = [
 
 const TAG_NAMES = 'big breasts|sole female|sole male|group|anal|nakadashi|lolicon|stockings|blowjob|schoolgirl uniform|full color|glasses|shotacon|rape|mosaic censorship|yaoi|ahegao|bondage|multi-work series|males only|incest|x-ray|milf|dark skin|paizuri|sex toys|netorare|futanari|double penetration|defloration|tankoubon|twintails|ffm threesome|full censorship|swimsuit|yuri|femdom|ponytail|impregnation|collar|big penis|dilf|anal intercourse|hairy|kemonomimi|cheating|kissing|muscle|pantyhose|bbm|big ass|tentacles|story arc|masturbation|sister|bikini|mind control|uncensored|sweating|lactation|crossdressing|mind break|tomgirl|mmf threesome|huge breasts|schoolboy uniform|pregnant|exhibitionism|unusual pupils|females only|teacher|fingering|maid|gloves|handjob|beauty mark|mother|condom|gender bender|harem|lingerie|very long hair|cunnilingus|rough translation|tail|urination|horns|footjob|piercing|small breasts|catgirl|big areolae|gag|demon girl|anthology|drugs|extraneous ads|prostitution|filming|stomach deformation|garter belt|bald|elf|bunny girl|gyaru|blindfold|blackmail|squirting|scat|tanlines|virginity|kimono|halo|bukkake|bbw|nipple stimulation|no penetration|rimjob|inflation|sole dickgirl|deepthroat|eye-covering bang|sleeping|monster|bloomers|inseki|leotard|inverted nipples|webtoon|breast feeding|tomboy|business suit|corruption|blowjob face|crotch tattoo|monster girl|thigh high boots|scanmark|wings|school swimsuit|slave|strap-on|bodysuit|snuff|bestiality|daughter|humiliation|dickgirl on dickgirl|magical girl|hair buns|shemale|tall girl|enema|cervix penetration|urethra insertion|guro|fox girl|breast expansion|bisexual|shibari|latex|smell|nurse|vtuber|old man|prostate massage|dickgirl on male|drunk|ryona|hidden sex|big nipples|dickgirl on female|leg lock|dick growth|hairy armpits|replaced|transformation|apron|pixie cut|bdsm|military|chikan|oppai loli|nun|miko|facial hair|spanking|torture|tribadism|gokkun|tail plug|voyeurism|masked face|incomplete|oyakodon|leash|possession|multiple orgasms|facesitting|exposed clothing|fisting|male on dickgirl|gyaru-oh|cosplaying|bike shorts|chastity belt|vore|feminization|artbook|oni|eyepatch|birth|blood|emotionless sex|nipple fuck|small penis|body modification|twins|tiara|cowgirl|focus anal|solo action|huge penis|pegging|tracksuit|cumflation|gaping|orgasm denial|piss drinking|foot licking|asphyxiation|hotpants|mesuiki|amputee|smegma|full-packaged futanari|giantess|cbt|multimouth blowjob|chloroform|pasties|smalldom|fishnets|sumata|cousin|yandere|body writing|large insertions|triple penetration|robot|thick eyebrows|demon|scar|milking|aunt|tall man|brother|mouth mask|moral degeneration|farting|frottage|swinging|shimaidon|painted nails|soushuuhen|big balls|vaginal birth|unusual teeth|cheerleader|onahole|body swap|eggs|double vaginal|ball sucking|clothed female nude male|chinese dress|miniguy|witch|josou seme|freckles|randoseru|gender morph|phimosis|petplay|prolapse|tickling|public use|niece|crying|high heels|armpit licking|kunoichi|big clit|lab coat|orc|dog girl|waitress|clit stimulation|nose hook|machine|parasite|nipple piercing|shimapan|eyemask|first person perspective|slime|low lolicon|bride|double anal|dog|large tattoo|catboy|kodomo doushi|goblin|forced exposure|watermarked|wolf girl|diaper|widow|christmas|dickgirls only|tutor|netorase|school gym uniform|long tongue|ai generated|sunglasses|ghost|futanarization|angel|stuck in wall|multiple paizuri|shaved head|compilation|domination loss|armpit sex|corset|vomit|human pet|coprophagia|time stop|all the way through|unbirth|clothed paizuri|variant set|age regression|skinsuit|nudity only|sundress|focus blowjob|selfcest|insect|vampire|mmm threesome|drill hair|age progression|coach|detached sleeves|mesugaki|minigirl';
 
-const TAGS = [{ label: '全部', value: '' }].concat(TAG_NAMES.split('|').map(function (name) {
+const VISIBLE_TAG_NAMES = 'big breasts|sole female|sole male|group|anal|nakadashi|lolicon|stockings|blowjob|schoolgirl uniform|full color|glasses|shotacon|rape|mosaic censorship|yaoi|ahegao|bondage|incest|x-ray|milf|dark skin|paizuri|sex toys|netorare|futanari|double penetration|tankoubon|twintails|swimsuit|yuri|femdom|ponytail|impregnation|big penis|hairy|kemonomimi|cheating|kissing|big ass|tentacles|masturbation|bikini|mind control|uncensored|lactation|crossdressing|huge breasts|pregnant|exhibitionism|females only|teacher|maid|gloves|handjob|mother|harem|lingerie|very long hair|cunnilingus|footjob|small breasts|catgirl|gag|demon girl|bunny girl|gyaru|blindfold|squirting|tanlines|kimono|bukkake|bbw|deepthroat|sleeping|monster girl|thigh high boots|school swimsuit|magical girl|hair buns|fox girl|shibari|latex|nurse|vtuber|drunk|hidden sex|big nipples|apron|bdsm|miko|spanking|voyeurism|cosplaying|artbook|oni|eyepatch|twins|cowgirl|huge penis|tracksuit|robot|witch|freckles|waitress|slime|bride|catboy|watermarked|christmas|ai generated|sunglasses|angel|shaved head|time stop|sundress|vampire';
+
+const TAGS = [{ label: '全部', value: ALL_FILTER_VALUE }].concat(VISIBLE_TAG_NAMES.split('|').map(function (name) {
   return { label: name, value: name };
 }));
 
@@ -32,6 +35,12 @@ const SORTS = [
   { label: '本周流行', value: 'popular-week' },
   { label: '总人气', value: 'popular' }
 ];
+
+const FILTER_LABELS = {
+  language: ['language', '语言'],
+  tag: ['tag', '标签'],
+  sort: ['sort', '排序']
+};
 
 function rulia() {
   return window.Rulia && (window.Rulia.Rulia || window.Rulia);
@@ -60,15 +69,36 @@ function filterValue(value) {
     value = value.value || value.selected || value.current || value.name || value.label || '';
   }
   value = String(value || '').trim();
-  return value === '全部' || value.toLowerCase() === 'all' ? '' : value;
+  return value === '全部' || value === ALL_FILTER_VALUE || value.toLowerCase() === 'all' ? '' : value;
+}
+
+function optionValue(options, value) {
+  const text = filterValue(value);
+  if (!text) {
+    return '';
+  }
+  const lowerText = text.toLowerCase();
+  for (let i = 0; i < options.length; i++) {
+    const option = options[i];
+    if (String(option.value).toLowerCase() === lowerText || String(option.label).toLowerCase() === lowerText) {
+      return option.value;
+    }
+  }
+  return text;
 }
 
 function readFilterField(source, name) {
   if (!source) {
     return '';
   }
+  const aliases = FILTER_LABELS[name] || [name];
   if (Object.prototype.hasOwnProperty.call(source, name)) {
     return filterValue(source[name]);
+  }
+  for (let i = 0; i < aliases.length; i++) {
+    if (Object.prototype.hasOwnProperty.call(source, aliases[i])) {
+      return filterValue(source[aliases[i]]);
+    }
   }
   if (Array.isArray(source)) {
     for (let i = 0; i < source.length; i++) {
@@ -76,7 +106,7 @@ function readFilterField(source, name) {
       if (!item) {
         continue;
       }
-      if (item.name === name || item.key === name || item.id === name || item.label === name) {
+      if (aliases.indexOf(item.name) >= 0 || aliases.indexOf(item.key) >= 0 || aliases.indexOf(item.id) >= 0 || aliases.indexOf(item.label) >= 0) {
         return filterValue(item.value || item.selected || item.current || item.option);
       }
     }
@@ -97,10 +127,15 @@ function parseFilters(raw) {
     return {};
   }
   return {
-    language: readFilterField(parsed, 'language'),
-    tag: readFilterField(parsed, 'tag'),
-    sort: readFilterField(parsed, 'sort')
+    language: optionValue(LANGUAGES, readFilterField(parsed, 'language')),
+    tag: optionValue(TAGS, readFilterField(parsed, 'tag')),
+    sort: optionValue(SORTS, readFilterField(parsed, 'sort'))
   };
+}
+
+function hasFilterValue(raw) {
+  const filters = parseFilters(raw);
+  return !!(filters.language || filters.tag || filters.sort);
 }
 
 function parseGetMangaListArgs(args) {
@@ -112,6 +147,13 @@ function parseGetMangaListArgs(args) {
     };
   }
   if (args.length === 3) {
+    if (typeof args[1] === 'number' || hasFilterValue(args[2])) {
+      return {
+        page: args[0],
+        keyword: typeof args[1] === 'number' ? '' : args[1],
+        filters: parseFilters(args[2])
+      };
+    }
     return {
       page: args[0],
       keyword: args[1],
